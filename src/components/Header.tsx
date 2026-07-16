@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus, Settings, FileText, Columns2, X } from "lucide-react";
+import { Plus, Settings, Columns2, X } from "lucide-react";
 
 interface Tab {
   id: string;
@@ -32,7 +32,7 @@ export default function Header({
       {/* Left: App Logo & Actions */}
       <div className="flex items-center gap-2 pl-3 shrink-0">
         <div className="flex items-center gap-1.5 text-zinc-400 mr-2">
-          <FileText className="w-4 h-4 text-blue-500" />
+          <img src="/logo.png" className="w-4 h-4 object-contain rounded-sm" alt="Hanzi First Logo" />
           <span className="text-xs font-semibold tracking-wider uppercase text-zinc-300">Hanzi First</span>
         </div>
         

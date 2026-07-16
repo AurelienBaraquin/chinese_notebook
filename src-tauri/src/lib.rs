@@ -123,8 +123,6 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_sqlite_lookup() {
         let db_path = std::path::Path::new("resources/cedict.db");
@@ -139,7 +137,7 @@ mod tests {
             "SELECT traditional, simplified, pinyin, pinyin_accent, definitions FROM dictionary WHERE simplified = ?1"
         ).expect("Failed to prepare query");
         
-        let mut rows = stmt.query_map(["你"], |row| {
+        let rows = stmt.query_map(["你"], |row| {
             let traditional: String = row.get(0)?;
             let simplified: String = row.get(1)?;
             let pinyin: String = row.get(2)?;
