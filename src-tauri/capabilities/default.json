@@ -6,6 +6,12 @@
   "permissions": [
     "core:default",
     "opener:default",
-    "core:window:default"
+    "core:window:default",
+    "dialog:default",
+    "fs:default",
+    {
+      "identifier": "fs:scope",
+      "allow": ["**/*"]
+    }
   ]
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import { Markdown } from "@tiptap/markdown";
 import { X } from "lucide-react";
 import TranslationPopup from "./TranslationPopup";
 import { segmentAndTranslateWeb } from "../utils/webSql";
@@ -113,10 +114,14 @@ export default function Editor({
       StarterKit.configure({
         // Customize starter kit if needed
       }),
+      Markdown,
     ],
     content: content,
+    contentType: "markdown",
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      if (typeof (editor as any).getMarkdown === "function") {
+        onChange((editor as any).getMarkdown());
+      }
     },
     onFocus: () => {
       onFocus();
@@ -241,8 +246,11 @@ export default function Editor({
 
   // Sync content when it changes outside (e.g. switching tabs)
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content, { emitUpdate: false });
+    if (editor && typeof (editor as any).getMarkdown === "function") {
+      const currentMarkdown = (editor as any).getMarkdown();
+      if (content !== currentMarkdown) {
+        editor.commands.setContent(content, { emitUpdate: false, contentType: "markdown" });
+      }
     }
   }, [content, editor]);
 

@@ -2,13 +2,13 @@ import React, { useState, useEffect, useRef } from "react";
 import Header from "./components/Header";
 import Editor from "./components/Editor";
 import { X, Settings, Volume2, Sliders, Info, HelpCircle } from "lucide-react";
-import { htmlToMarkdown, markdownToHtml } from "./utils/markdown";
 
 interface Tab {
   id: string;
   title: string;
   content: string;
   filePath?: string;
+  fileHandle?: any;
   isDirty?: boolean;
   lastSavedContent?: string;
 }
@@ -27,8 +27,9 @@ export default function App() {
         const parsed: Tab[] = JSON.parse(saved);
         return parsed.map((t) => ({
           ...t,
+          fileHandle: undefined,
           isDirty: t.isDirty ?? false,
-          lastSavedContent: t.lastSavedContent ?? t.content,
+          lastSavedContent: t.lastSavedContent ?? (t.isDirty ? "" : t.content),
         }));
       } catch (e) {
         console.error("Failed to parse saved tabs:", e);
@@ -38,16 +39,16 @@ export default function App() {
       {
         id: "1",
         title: "Note 1.txt",
-        content: `<h1>你好, 欢迎使用 Chinese Notebook! 🎯</h1><p>这是一个极简、100% 离线的中文学习编辑器。</p><p><b>💡 使用提示:</b></p><ul><li><b>反馈输入:</b> 用你的系统输入法 (IME) 输入中文并空格/回车确认，应用会立即朗读出你输入的词语，帮助你立刻校对同音字。</li><li><b>智能阅读:</b> 用鼠标<b>双击</b>或<b>拖拽选择</b>一段文本，应用将在 400 毫秒后自动朗读选择的内容。</li><li><b>即时查询:</b> 在朗读的同时，段落上方会出现浮动的词条词典弹窗。点击弹窗里的汉字词块，能立即在下方显示拼音和英文释义。</li><li><b>安静模式:</b> 在编辑器任意空白处单击一下，就会清除选择并立刻切断声音。</li></ul>`,
+        content: `# 你好, 欢迎使用 Chinese Notebook! 🎯\n\n这是一个极简、100% 离线的中文学习编辑器。\n\n**💡 使用提示:**\n\n- **反馈输入:** 用你的系统输入法 (IME) 输入中文并空格/回车确认，应用会立即朗读出你输入的词语，帮助你立刻校对同音字。\n- **智能阅读:** 用鼠标**双击**或**拖拽选择**一段文本，应用将在 400 毫秒后自动朗读选择的内容。\n- **即时查询:** 在朗读的同时，段落上方会出现浮动的词条词典弹窗。点击弹窗里的汉字词块，能立即在下方显示拼音和英文释义。\n- **安静模式:** 在编辑器任意空白处单击一下，就会清除选择并立刻切断声音。`,
         isDirty: false,
-        lastSavedContent: `<h1>你好, 欢迎使用 Chinese Notebook! 🎯</h1><p>这是一个极简、100% 离线的中文学习编辑器。</p><p><b>💡 使用提示:</b></p><ul><li><b>反馈输入:</b> 用你的系统输入法 (IME) 输入中文并空格/回车确认，应用会立即朗读出你输入的词语，帮助你立刻校对同音字。</li><li><b>智能阅读:</b> 用鼠标<b>双击</b>或<b>拖拽选择</b>一段文本，应用将在 400 毫秒后自动朗读选择的内容。</li><li><b>即时查询:</b> 在朗读的同时，段落上方会出现浮动的词条词典弹窗。点击弹窗里的汉字词块，能立即在下方显示拼音和英文释义。</li><li><b>安静模式:</b> 在编辑器任意空白处单击一下，就会清除选择并立刻切断声音。</li></ul>`,
+        lastSavedContent: `# 你好, 欢迎使用 Chinese Notebook! 🎯\n\n这是一个极简、100% 离线的中文学习编辑器。\n\n**💡 使用提示:**\n\n- **反馈输入:** 用你的系统输入法 (IME) 输入中文并空格/回车确认，应用会立即朗读出你输入的词语，帮助你立刻校对同音字。\n- **智能阅读:** 用鼠标**双击**或**拖拽选择**一段文本，应用将在 400 毫秒后自动朗读选择的内容。\n- **即时查询:** 在朗读的同时，段落上方会出现浮动的词条词典弹窗。点击弹窗里的汉字词块，能立即在下方显示拼音和英文释义。\n- **安静模式:** 在编辑器任意空白处单击一下，就会清除选择并立刻切断声音。`,
       },
       {
         id: "2",
         title: "Reference.txt",
-        content: `<h1>学习中文 (Study Chinese) 📚</h1><p>这是你的第二侧分栏视窗，你可以用它来对照翻译，或者记录词汇笔记！</p><p><b>词汇积累:</b></p><ul><li>中文 (zhōng wén) - Chinese language</li><li>学习 (xué xí) - to learn / study</li><li>离线 (lí xiàn) - offline</li><li>编辑器 (biān jí qì) - editor</li></ul>`,
+        content: `# 学习中文 (Study Chinese) 📚\n\n这是你的第二侧分栏视窗，你可以用它来对照翻译，或者记录词汇笔记！\n\n**词汇积累:**\n\n- 中文 (zhōng wén) - Chinese language\n- 学习 (xué xí) - to learn / study\n- 离线 (lí xiàn) - offline\n- 编辑器 (biān jí qì) - editor`,
         isDirty: false,
-        lastSavedContent: `<h1>学习中文 (Study Chinese) 📚</h1><p>这是你的第二侧分栏视窗，你可以用它来对照翻译，或者记录词汇笔记！</p><p><b>词汇积累:</b></p><ul><li>中文 (zhōng wén) - Chinese language</li><li>学习 (xué xí) - to learn / study</li><li>离线 (lí xiàn) - offline</li><li>编辑器 (biān jí qì) - editor</li></ul>`,
+        lastSavedContent: `# 学习中文 (Study Chinese) 📚\n\n这是你的第二侧分栏视窗，你可以用它来对照翻译，或者记录词汇笔记！\n\n**词汇积累:**\n\n- 中文 (zhōng wén) - Chinese language\n- 学习 (xué xí) - to learn / study\n- 离线 (lí xiàn) - offline\n- 编辑器 (biān jí qì) - editor`,
       }
     ];
   });
@@ -66,9 +67,13 @@ export default function App() {
     return saved ? parseInt(saved, 10) : 20; // Default 20px
   });
 
-  const [recentFiles, setRecentFiles] = useState<Array<{ id: string; title: string; content: string }>>(() => {
+  const [recentFiles, setRecentFiles] = useState<Array<{ id: string; title: string; content: string; filePath?: string; fileHandle?: any }>>(() => {
     const saved = localStorage.getItem("cn_recent_files");
     return saved ? JSON.parse(saved) : [];
+  });
+
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState<boolean>(() => {
+    return localStorage.getItem("cn_auto_save") === "true";
   });
 
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -86,13 +91,14 @@ export default function App() {
   // Browser voices list state
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
 
-  // Reference for file & folder pickers
+  // Reference for file & folder pickers (Web Fallback)
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
   // 2. Local Storage Sync Effect Loops
   useEffect(() => {
-    localStorage.setItem("cn_tabs", JSON.stringify(tabs));
+    const cleanTabs = tabs.map(({ fileHandle, ...rest }) => rest);
+    localStorage.setItem("cn_tabs", JSON.stringify(cleanTabs));
   }, [tabs]);
 
   useEffect(() => {
@@ -108,8 +114,13 @@ export default function App() {
   }, [fontSize]);
 
   useEffect(() => {
-    localStorage.setItem("cn_recent_files", JSON.stringify(recentFiles));
+    const cleanRecents = recentFiles.map(({ fileHandle, ...rest }) => rest);
+    localStorage.setItem("cn_recent_files", JSON.stringify(cleanRecents));
   }, [recentFiles]);
+
+  useEffect(() => {
+    localStorage.setItem("cn_auto_save", autoSaveEnabled.toString());
+  }, [autoSaveEnabled]);
 
   useEffect(() => {
     localStorage.setItem("cn_tts_voice", voiceName);
@@ -118,6 +129,42 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("cn_tts_rate", speechRate.toString());
   }, [speechRate]);
+
+  // Load browser file handles from IndexedDB on startup
+  useEffect(() => {
+    const loadHandles = async () => {
+      const isTauri = typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__ !== undefined;
+      if (isTauri) return;
+
+      try {
+        const { getFileHandle } = await import("./utils/db");
+        const handlesMap: Record<string, any> = {};
+        for (const tab of tabs) {
+          if (!tab.filePath && !tab.fileHandle) {
+            const handle = await getFileHandle(tab.id);
+            if (handle) {
+              handlesMap[tab.id] = handle;
+            }
+          }
+        }
+
+        if (Object.keys(handlesMap).length > 0) {
+          setTabs((prevTabs) =>
+            prevTabs.map((tab) => {
+              if (handlesMap[tab.id]) {
+                return { ...tab, fileHandle: handlesMap[tab.id] };
+              }
+              return tab;
+            })
+          );
+        }
+      } catch (err) {
+        console.warn("Failed to load file handles from IndexedDB on startup:", err);
+      }
+    };
+
+    loadHandles();
+  }, []);
 
   // Load browser voices
   useEffect(() => {
@@ -147,6 +194,59 @@ export default function App() {
   // Active tab ID of the currently focused pane
   const focusedActiveTabId = panes.find((p) => p.id === focusedPaneId)?.activeTabId || panes[0].activeTabId;
 
+  // Debounced Auto-Save Effect (triggers after 1.5 seconds of user input inactivity)
+  useEffect(() => {
+    if (!autoSaveEnabled) return;
+
+    const activeTab = tabs.find((t) => t.id === focusedActiveTabId);
+    if (!activeTab || !activeTab.isDirty || (!activeTab.filePath && !activeTab.fileHandle)) return;
+
+    const timer = setTimeout(async () => {
+      const isTauri = typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__ !== undefined;
+      const fileContent = activeTab.content;
+
+      if (isTauri && activeTab.filePath) {
+        try {
+          const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+          await writeTextFile(activeTab.filePath, fileContent);
+          
+          // Reset dirty state silently
+          setTabs((prev) =>
+            prev.map((t) =>
+              t.id === activeTab.id
+                ? { ...t, isDirty: false, lastSavedContent: activeTab.content }
+                : t
+            )
+          );
+          console.log(`Auto-saved file to disk (Tauri): ${activeTab.title}`);
+        } catch (err) {
+          console.error("Auto-save write operation failed:", err);
+        }
+      } else if (activeTab.fileHandle) {
+        // Web Auto-Save fallback using File System Access API
+        try {
+          const writable = await activeTab.fileHandle.createWritable();
+          await writable.write(fileContent);
+          await writable.close();
+          
+          // Reset dirty state silently
+          setTabs((prev) =>
+            prev.map((t) =>
+              t.id === activeTab.id
+                ? { ...t, isDirty: false, lastSavedContent: activeTab.content }
+                : t
+            )
+          );
+          console.log(`Auto-saved file to disk (Web): ${activeTab.title}`);
+        } catch (err) {
+          console.error("Web Auto-save failed:", err);
+        }
+      }
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [tabs, focusedActiveTabId, autoSaveEnabled]);
+
   // Tab Operations
   const handleNewTab = () => {
     const newId = Date.now().toString();
@@ -175,6 +275,11 @@ export default function App() {
       );
       if (!confirmClose) return;
     }
+
+    // Delete file handle from IndexedDB on close
+    import("./utils/db").then(({ deleteFileHandle }) => {
+      deleteFileHandle(id).catch(console.error);
+    }).catch(console.error);
 
     if (tabs.length === 1) {
       setTabs([
@@ -207,6 +312,20 @@ export default function App() {
       tabs.map((t) => {
         if (t.id === tabId) {
           const isDirty = newContent !== (t.lastSavedContent ?? "");
+
+          // Request write permission if not granted on typing user gesture
+          if (t.fileHandle && isDirty && !t.filePath) {
+            t.fileHandle.queryPermission({ mode: "readwrite" }).then(async (status: string) => {
+              if (status !== "granted") {
+                try {
+                  await t.fileHandle.requestPermission({ mode: "readwrite" });
+                } catch (e) {
+                  console.warn("User rejected write permission prompt:", e);
+                }
+              }
+            }).catch(console.error);
+          }
+
           return { ...t, content: newContent, isDirty };
         }
         return t;
@@ -214,10 +333,38 @@ export default function App() {
     );
   };
 
-  const handleSetActiveTabId = (id: string) => {
+  const handleSetActiveTabId = async (id: string) => {
     setPanes(
       panes.map((p) => (p.id === focusedPaneId ? { ...p, activeTabId: id } : p))
     );
+
+    // Request write permission on tab switch user gesture
+    const tab = tabs.find(t => t.id === id);
+    if (tab && tab.fileHandle && !tab.filePath) {
+      try {
+        const status = await tab.fileHandle.queryPermission({ mode: "readwrite" });
+        if (status !== "granted") {
+          await tab.fileHandle.requestPermission({ mode: "readwrite" });
+        }
+      } catch (err) {
+        console.warn("Permission request rejected on active tab switch:", err);
+      }
+    }
+  };
+
+  const handleEditorFocus = async (tabId: string) => {
+    const tab = tabs.find((t) => t.id === tabId);
+    if (tab && tab.fileHandle && !tab.filePath) {
+      try {
+        const status = await tab.fileHandle.queryPermission({ mode: "readwrite" });
+        if (status !== "granted") {
+          console.log("Requesting browser write permission for handle via editor focus gesture...");
+          await tab.fileHandle.requestPermission({ mode: "readwrite" });
+        }
+      } catch (err) {
+        console.warn("Write permission request was not granted by editor focus gesture:", err);
+      }
+    }
   };
 
   // Split view operations (columns tmux style)
@@ -238,7 +385,101 @@ export default function App() {
   };
 
   // File dropdown operations (Files)
-  const triggerOpenFile = () => {
+  const triggerOpenFile = async () => {
+    const isTauri = typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__ !== undefined;
+    if (isTauri) {
+      try {
+        const { open } = await import("@tauri-apps/plugin-dialog");
+        const { readTextFile } = await import("@tauri-apps/plugin-fs");
+
+        const selected = await open({
+          multiple: false,
+          directory: false,
+          filters: [{ name: 'Text/Markdown/HTML', extensions: ['txt', 'md', 'html'] }]
+        });
+
+        if (selected) {
+          const content = await readTextFile(selected as string);
+          const htmlContent = content;
+
+          const newId = Date.now().toString();
+          const filename = (selected as string).split(/[/\\]/).pop() || "Untitled.txt";
+          const newTab = {
+            id: newId,
+            title: filename,
+            content: htmlContent,
+            filePath: selected as string,
+            isDirty: false,
+            lastSavedContent: htmlContent,
+          };
+          setTabs([...tabs, newTab]);
+          
+          setPanes(
+            panes.map((p) => (p.id === focusedPaneId ? { ...p, activeTabId: newId } : p))
+          );
+
+          // Add to recent files
+          const filtered = recentFiles.filter((f) => f.title !== filename);
+          const updatedRecents = [
+            { id: selected as string, title: filename, content: content, filePath: selected as string },
+            ...filtered
+          ].slice(0, 5);
+          setRecentFiles(updatedRecents);
+        }
+        return;
+      } catch (err) {
+        console.error("Tauri dialog open failed:", err);
+      }
+    }
+
+    // Web Fallback: Try File System Access API first
+    if (typeof window !== "undefined" && "showOpenFilePicker" in window) {
+      try {
+        const [handle] = await (window as any).showOpenFilePicker({
+          types: [{
+            description: 'Text/Markdown/HTML Files',
+            accept: {
+              'text/plain': ['.txt', '.md'],
+              'text/html': ['.html']
+            }
+          }]
+        });
+        const file = await handle.getFile();
+        const text = await file.text();
+        const htmlContent = text;
+
+        const newId = Date.now().toString();
+        const newTab = {
+          id: newId,
+          title: file.name,
+          content: htmlContent,
+          fileHandle: handle,
+          isDirty: false,
+          lastSavedContent: htmlContent,
+        };
+
+        const { saveFileHandle } = await import("./utils/db");
+        await saveFileHandle(newId, handle);
+
+        setTabs([...tabs, newTab]);
+        setPanes(
+          panes.map((p) => (p.id === focusedPaneId ? { ...p, activeTabId: newId } : p))
+        );
+
+        // Add to recent files
+        const filtered = recentFiles.filter((f) => f.title !== file.name);
+        const updatedRecents = [
+          { id: newId, title: file.name, content: text, fileHandle: handle },
+          ...filtered
+        ].slice(0, 5);
+        setRecentFiles(updatedRecents);
+        return;
+      } catch (err) {
+        console.warn("Web File System Access API failed or cancelled, using simple input fallback:", err);
+      }
+    }
+
+    // Traditional Web Fallback
     fileInputRef.current?.click();
   };
 
@@ -249,7 +490,7 @@ export default function App() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      const htmlContent = file.name.endsWith(".html") ? text : markdownToHtml(text);
+      const htmlContent = text;
 
       const newId = Date.now().toString();
       const newTab = {
@@ -279,39 +520,115 @@ export default function App() {
     const isTauri = typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__ !== undefined;
     if (isTauri) {
       try {
-        const { invoke } = await import("@tauri-apps/api/core");
-        const files: Array<{ title: string; content: string; path: string }> = await invoke("open_folder_dialog");
+        const { open } = await import("@tauri-apps/plugin-dialog");
+        const { readTextFile, readDir } = await import("@tauri-apps/plugin-fs");
+        const { join } = await import("@tauri-apps/api/path");
 
-        if (files.length > 0) {
-          const newTabs: Tab[] = files.map((file, idx) => {
-            const htmlContent = file.title.endsWith(".html") ? file.content : markdownToHtml(file.content);
-            return {
-              id: (Date.now() + idx).toString(),
-              title: file.title,
-              content: htmlContent,
-              filePath: file.path,
-              isDirty: false,
-              lastSavedContent: htmlContent,
-            };
-          });
+        const selectedDir = await open({
+          multiple: false,
+          directory: true,
+        });
 
-          setTabs([...tabs, ...newTabs]);
-          setPanes(
-            panes.map((p) => (p.id === focusedPaneId ? { ...p, activeTabId: newTabs[0].id } : p))
+        if (selectedDir) {
+          const entries = await readDir(selectedDir as string);
+          const textEntries = entries.filter(
+            (e) => e.isFile && (e.name.endsWith(".txt") || e.name.endsWith(".md") || e.name.endsWith(".html"))
           );
 
-          // Add to recent files
-          const updatedRecents = [...files.map(f => ({ id: f.path, title: f.title, content: f.content })), ...recentFiles].slice(0, 5);
+          if (textEntries.length === 0) {
+            alert("No compatible text files found in the selected directory.");
+            return;
+          }
+
+          const loadedTabs: Tab[] = [];
+          for (let i = 0; i < textEntries.length; i++) {
+            const entry = textEntries[i];
+            const filePath = await join(selectedDir as string, entry.name);
+            const content = await readTextFile(filePath);
+            const htmlContent = content;
+
+            loadedTabs.push({
+              id: (Date.now() + i).toString(),
+              title: entry.name,
+              content: htmlContent,
+              filePath: filePath,
+              isDirty: false,
+              lastSavedContent: htmlContent,
+            });
+          }
+
+          setTabs([...tabs, ...loadedTabs]);
+          setPanes(
+            panes.map((p) => (p.id === focusedPaneId ? { ...p, activeTabId: loadedTabs[0].id } : p))
+          );
+
+          // Add first loaded file to recent files list
+          const updatedRecents = [
+            {
+              id: loadedTabs[0].filePath!,
+              title: loadedTabs[0].title,
+              content: loadedTabs[0].content,
+              filePath: loadedTabs[0].filePath
+            },
+            ...recentFiles
+          ].slice(0, 5);
           setRecentFiles(updatedRecents);
-          alert(`Loaded ${files.length} files from folder!`);
+          alert(`Loaded ${loadedTabs.length} files from folder!`);
         }
         return;
       } catch (err) {
-        console.error("Native folder dialog failed, using web picker fallback:", err);
+        console.error("Tauri native folder dialog failed, using web picker fallback:", err);
       }
     }
 
-    // Web Fallback: trigger HTML5 folder picker
+    // Web Fallback: Try File System Access API showDirectoryPicker
+    if (typeof window !== "undefined" && "showDirectoryPicker" in window) {
+      try {
+        const dirHandle = await (window as any).showDirectoryPicker();
+        const loadedTabs: Tab[] = [];
+        let idx = 0;
+        
+        for await (const entry of dirHandle.values()) {
+          if (entry.kind === 'file') {
+            if (entry.name.endsWith(".txt") || entry.name.endsWith(".md") || entry.name.endsWith(".html")) {
+              const file = await entry.getFile();
+              const text = await file.text();
+              const htmlContent = text;
+              
+              const entryId = (Date.now() + idx).toString();
+              loadedTabs.push({
+                id: entryId,
+                title: entry.name,
+                content: htmlContent,
+                fileHandle: entry,
+                isDirty: false,
+                lastSavedContent: htmlContent,
+              });
+              
+              const { saveFileHandle } = await import("./utils/db");
+              await saveFileHandle(entryId, entry);
+              idx++;
+            }
+          }
+        }
+        
+        if (loadedTabs.length === 0) {
+          alert("No compatible text files found in the selected folder.");
+          return;
+        }
+
+        setTabs([...tabs, ...loadedTabs]);
+        setPanes(
+          panes.map((p) => (p.id === focusedPaneId ? { ...p, activeTabId: loadedTabs[0].id } : p))
+        );
+        alert(`Loaded ${loadedTabs.length} files from folder!`);
+        return;
+      } catch (err) {
+        console.warn("Web Directory Picker failed or cancelled, using simple input fallback:", err);
+      }
+    }
+
+    // Traditional Web Fallback: trigger HTML5 folder picker
     folderInputRef.current?.click();
   };
 
@@ -336,7 +653,7 @@ export default function App() {
       const reader = new FileReader();
       reader.onload = (event) => {
         const text = event.target?.result as string;
-        const htmlContent = file.name.endsWith(".html") ? text : markdownToHtml(text);
+        const htmlContent = text;
 
         loadedTabs.push({
           id: (Date.now() + idx).toString(),
@@ -372,11 +689,13 @@ export default function App() {
       );
     } else {
       const newId = Date.now().toString();
-      const htmlContent = file.title.endsWith(".html") ? file.content : markdownToHtml(file.content);
+      const htmlContent = file.content;
       const newTab = {
         id: newId,
         title: file.title,
         content: htmlContent,
+        filePath: file.filePath,
+        fileHandle: file.fileHandle,
         isDirty: false,
         lastSavedContent: htmlContent,
       };
@@ -391,23 +710,33 @@ export default function App() {
     const tab = tabs.find((t) => t.id === focusedActiveTabId);
     if (!tab) return;
 
-    // Convert tab HTML structure to Markdown (or keep raw if HTML file)
-    const fileContent = tab.title.endsWith(".html") ? tab.content : htmlToMarkdown(tab.content);
+    const fileContent = tab.content;
 
     const isTauri = typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__ !== undefined;
 
     if (isTauri) {
       try {
-        const { invoke } = await import("@tauri-apps/api/core");
+        const { save } = await import("@tauri-apps/plugin-dialog");
+        const { writeTextFile } = await import("@tauri-apps/plugin-fs");
 
         if (isSaveAs || !tab.filePath) {
           // Native Save As Picker dialog
-          const savedPath: string = await invoke("save_file_as_dialog", {
-            content: fileContent,
-            defaultName: tab.title,
+          const savedPath = await save({
+            defaultPath: tab.title,
+            filters: [{ name: 'Text/Markdown/HTML', extensions: ['txt', 'md', 'html'] }]
           });
 
+          if (!savedPath) return; // Save cancelled by user
+
+          await writeTextFile(savedPath, fileContent);
           const filename = savedPath.split(/[/\\]/).pop() || tab.title;
+
+          const filtered = recentFiles.filter((f) => f.title !== filename);
+          const updatedRecents = [
+            { id: savedPath, title: filename, content: fileContent, filePath: savedPath },
+            ...filtered
+          ].slice(0, 5);
+          setRecentFiles(updatedRecents);
 
           setTabs(
             tabs.map((t) =>
@@ -424,10 +753,7 @@ export default function App() {
           );
         } else {
           // Silent direct save to loaded path
-          await invoke("save_file_to_disk", {
-            path: tab.filePath,
-            content: fileContent,
-          });
+          await writeTextFile(tab.filePath, fileContent);
           setTabs(
             tabs.map((t) =>
               t.id === tab.id
@@ -438,11 +764,65 @@ export default function App() {
         }
         return;
       } catch (err) {
-        console.error("Native write failed, running browser fallback:", err);
+        console.error("Tauri native write failed:", err);
       }
     }
 
-    // Web Fallback: download file Blob
+    // Web Fallback: Try File System Access API showSaveFilePicker first
+    if (typeof window !== "undefined" && ("showSaveFilePicker" in window || tab.fileHandle)) {
+      try {
+        let handle = tab.fileHandle;
+        if (isSaveAs || !handle) {
+          handle = await (window as any).showSaveFilePicker({
+            suggestedName: tab.title,
+            types: [{
+              description: 'Text Files',
+              accept: {
+                'text/plain': ['.txt', '.md'],
+                'text/html': ['.html']
+              }
+            }]
+          });
+        }
+        
+        if (handle) {
+          const writable = await handle.createWritable();
+          await writable.write(fileContent);
+          await writable.close();
+
+          const { saveFileHandle } = await import("./utils/db");
+          await saveFileHandle(tab.id, handle);
+
+          const file = await handle.getFile();
+
+          const filtered = recentFiles.filter((f) => f.title !== file.name);
+          const updatedRecents = [
+            { id: tab.id, title: file.name, content: fileContent, fileHandle: handle },
+            ...filtered
+          ].slice(0, 5);
+          setRecentFiles(updatedRecents);
+
+          setTabs(
+            tabs.map((t) =>
+              t.id === tab.id
+                ? {
+                    ...t,
+                    title: file.name,
+                    fileHandle: handle,
+                    isDirty: false,
+                    lastSavedContent: tab.content,
+                  }
+                : t
+            )
+          );
+          return;
+        }
+      } catch (err) {
+        console.warn("Web File System Access API write failed or cancelled, using download blob fallback:", err);
+      }
+    }
+
+    // Traditional Web Fallback: download file Blob
     const blob = new Blob([fileContent], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -485,7 +865,7 @@ export default function App() {
   const handleCopyAll = () => {
     const tab = tabs.find((t) => t.id === focusedActiveTabId);
     if (!tab) return;
-    const fileContent = tab.title.endsWith(".html") ? tab.content : htmlToMarkdown(tab.content);
+    const fileContent = tab.content;
 
     navigator.clipboard.writeText(fileContent).then(() => {
       alert("Document copied to clipboard!");
@@ -496,7 +876,7 @@ export default function App() {
     navigator.clipboard.readText().then((clipText) => {
       const tab = tabs.find((t) => t.id === focusedActiveTabId);
       if (!tab) return;
-      const pastedHtml = tab.title.endsWith(".html") ? clipText : markdownToHtml(clipText);
+      const pastedHtml = clipText;
       handleContentChange(focusedActiveTabId, tab.content + pastedHtml);
     }).catch((err) => {
       console.error("Failed to read clipboard:", err);
@@ -525,6 +905,8 @@ export default function App() {
         onOpenFolder={triggerOpenFolder}
         onSaveFile={() => handleSaveFile(false)}
         onSaveAs={() => handleSaveFile(true)}
+        autoSaveEnabled={autoSaveEnabled}
+        onToggleAutoSave={() => setAutoSaveEnabled(!autoSaveEnabled)}
         recentFiles={recentFiles}
         onOpenRecent={handleOpenRecent}
         onCopyAll={handleCopyAll}
@@ -579,7 +961,10 @@ export default function App() {
                   onChange={(content) => handleContentChange(pane.activeTabId, content)}
                   voiceName={voiceName}
                   isActivePane={isActive}
-                  onFocus={() => setFocusedPaneId(pane.id)}
+                  onFocus={() => {
+                    setFocusedPaneId(pane.id);
+                    handleEditorFocus(pane.activeTabId);
+                  }}
                   searchOpen={searchOpen}
                   onCloseSearch={() => setSearchOpen(false)}
                   fontSize={fontSize}

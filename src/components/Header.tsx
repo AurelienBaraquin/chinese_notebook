@@ -20,6 +20,8 @@ interface HeaderProps {
   onOpenFolder: () => void;
   onSaveFile: () => void;
   onSaveAs: () => void;
+  autoSaveEnabled: boolean;
+  onToggleAutoSave: () => void;
   recentFiles: { id: string; title: string }[];
   onOpenRecent: (tabId: string) => void;
   onCopyAll: () => void;
@@ -42,6 +44,8 @@ export default function Header({
   onOpenFolder,
   onSaveFile,
   onSaveAs,
+  autoSaveEnabled,
+  onToggleAutoSave,
   recentFiles,
   onOpenRecent,
   onCopyAll,
@@ -79,8 +83,8 @@ export default function Header({
             }}
             className={`px-2.5 py-1 text-xs rounded-md font-semibold transition-colors flex items-center gap-1 cursor-pointer ${
               activeMenu === "file"
-                ? "bg-zinc-800 text-zinc-100"
-                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
+                ? "bg-zinc-850 text-zinc-100"
+                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850/60"
             }`}
           >
             <span>File</span>
@@ -90,33 +94,47 @@ export default function Header({
             <div className="absolute left-0 mt-1.5 w-48 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
               <button
                 onClick={onNewTab}
-                className="w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-850 text-zinc-300 hover:text-white flex items-center justify-between cursor-pointer"
+                className="w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-855 text-zinc-300 hover:text-white flex items-center justify-between cursor-pointer"
               >
                 <span>New Tab</span>
               </button>
               <button
                 onClick={onOpenFile}
-                className="w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-850 text-zinc-300 hover:text-white flex items-center justify-between cursor-pointer"
+                className="w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-855 text-zinc-300 hover:text-white flex items-center justify-between cursor-pointer"
               >
                 <span>Open File...</span>
               </button>
               <button
                 onClick={onOpenFolder}
-                className="w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-850 text-zinc-300 hover:text-white flex items-center justify-between cursor-pointer"
+                className="w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-855 text-zinc-300 hover:text-white flex items-center justify-between cursor-pointer"
               >
                 <span>Open Folder...</span>
               </button>
               <button
                 onClick={onSaveFile}
-                className="w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-850 text-zinc-300 hover:text-white flex items-center justify-between cursor-pointer"
+                className="w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-855 text-zinc-300 hover:text-white flex items-center justify-between cursor-pointer"
               >
                 <span>Save File</span>
               </button>
               <button
                 onClick={onSaveAs}
-                className="w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-850 text-zinc-300 hover:text-white flex items-center justify-between cursor-pointer"
+                className="w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-855 text-zinc-300 hover:text-white flex items-center justify-between cursor-pointer"
               >
                 <span>Save As...</span>
+              </button>
+              
+              <div className="border-t border-zinc-800/80 my-1"></div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleAutoSave();
+                }}
+                className="w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-855 text-zinc-300 hover:text-white flex items-center justify-between cursor-pointer"
+              >
+                <span>Auto-Save</span>
+                <span className={`text-[10px] font-bold ${autoSaveEnabled ? "text-emerald-400" : "text-zinc-650"}`}>
+                  {autoSaveEnabled ? "✓ ON" : "OFF"}
+                </span>
               </button>
               
               {recentFiles.length > 0 && (
