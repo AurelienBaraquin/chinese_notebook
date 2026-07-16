@@ -24,6 +24,15 @@ pub struct WordTranslation {
     pub entries: Vec<CedictEntry>,
 }
 
+fn has_chinese(s: &str) -> bool {
+    s.chars().any(|c| {
+        let val = c as u32;
+        (0x4e00..=0x9fff).contains(&val) || 
+        (0x3400..=0x4dbf).contains(&val) || 
+        (0xf900..=0xfaff).contains(&val)
+    })
+}
+
 #[tauri::command]
 fn translate_selection(text: String, state: State<'_, AppState>) -> Result<Vec<WordTranslation>, String> {
     let words = state.jieba.cut(&text, true);
@@ -37,6 +46,9 @@ fn translate_selection(text: String, state: State<'_, AppState>) -> Result<Vec<W
         
     for word in words {
         let word_str = word.word.to_string();
+        if word_str.trim().is_empty() || !has_chinese(&word_str) {
+            continue;
+        }
         let mut entries = Vec::new();
         
         let rows = stmt.query_map([&word_str], |row| {
@@ -71,6 +83,64 @@ fn translate_selection(text: String, state: State<'_, AppState>) -> Result<Vec<W
     }
     
     Ok(results)
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct FileEntry {
+    pub title: String,
+    pub content: String,
+    pub path: String,
+}
+
+#[tauri::command]
+fn open_folder_dialog() -> Result<Vec<FileEntry>, String> {
+    let folder = rfd::FileDialog::new()
+        .pick_folder()
+        .ok_or_else(|| "No folder selected".to_string())?;
+
+    let mut files = Vec::new();
+    let entries = std::fs::read_dir(folder).map_err(|e| e.to_string())?;
+    for entry in entries {
+        if let Ok(entry) = entry {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(ext) = path.extension() {
+                    let ext_str = ext.to_string_lossy().to_lowercase();
+                    if ext_str == "txt" || ext_str == "md" || ext_str == "html" {
+                        let title = path.file_name().unwrap().to_string_lossy().into_owned();
+                        let content = std::fs::read_to_string(&path).unwrap_or_default();
+
+                        files.push(FileEntry {
+                            title,
+                            content,
+                            path: path.to_string_lossy().into_owned(),
+                        });
+                    }
+                }
+            }
+        }
+    }
+    Ok(files)
+}
+
+#[tauri::command]
+fn save_file_as_dialog(content: String, default_name: String) -> Result<String, String> {
+    let file_path = rfd::FileDialog::new()
+        .set_file_name(&default_name)
+        .add_filter("Text File", &["txt"])
+        .add_filter("Markdown File", &["md"])
+        .add_filter("HTML File", &["html"])
+        .save_file()
+        .ok_or_else(|| "Save cancelled".to_string())?;
+
+    std::fs::write(&file_path, content).map_err(|e| e.to_string())?;
+    Ok(file_path.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+fn save_file_to_disk(path: String, content: String) -> Result<(), String> {
+    std::fs::write(path, content).map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -116,7 +186,12 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![translate_selection])
+        .invoke_handler(tauri::generate_handler![
+            translate_selection,
+            open_folder_dialog,
+            save_file_as_dialog,
+            save_file_to_disk
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

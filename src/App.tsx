@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Header from "./components/Header";
 import Editor from "./components/Editor";
 import { X, Settings, Volume2, Sliders, Info, HelpCircle } from "lucide-react";
+import { htmlToMarkdown, markdownToHtml } from "./utils/markdown";
 
 interface Tab {
   id: string;
   title: string;
   content: string;
+  filePath?: string;
+  isDirty?: boolean;
+  lastSavedContent?: string;
 }
 
 interface Pane {
@@ -15,26 +19,60 @@ interface Pane {
 }
 
 export default function App() {
-  // Tabs State
-  const [tabs, setTabs] = useState<Tab[]>([
-    {
-      id: "1",
-      title: "Note 1.txt",
-      content: `<h1>你好, 欢迎使用 Chinese Notebook! 🎯</h1><p>这是一个极简、100% 离线的中文学习编辑器。</p><p><b>💡 使用提示:</b></p><ul><li><b>反馈输入:</b> 用你的系统输入法 (IME) 输入中文并空格/回车确认，应用会立即朗读出你输入的词语，帮助你立刻校对同音字。</li><li><b>智能阅读:</b> 用鼠标<b>双击</b>或<b>拖拽选择</b>一段文本，应用将在 400 毫秒后自动朗读选择的内容。</li><li><b>即时查询:</b> 在朗读的同时，段落上方会出现浮动的词条词典弹窗。点击弹窗里的汉字词块，能立即在下方显示拼音和英文释义。</li><li><b>安静模式:</b> 在编辑器任意空白处单击一下，就会清除选择并立刻切断声音。</li></ul>`,
-    },
-    {
-      id: "2",
-      title: "Reference.txt",
-      content: `<h1>学习中文 (Study Chinese) 📚</h1><p>这是你的第二侧分栏视窗，你可以用它来对照翻译，或者记录词汇笔记！</p><p><b>词汇积累:</b></p><ul><li>中文 (zhōng wén) - Chinese language</li><li>学习 (xué xí) - to learn / study</li><li>离线 (lí xiàn) - offline</li><li>编辑器 (biān jí qì) - editor</li></ul>`,
+  // 1. Initial State Loading from Local Storage
+  const [tabs, setTabs] = useState<Tab[]>(() => {
+    const saved = localStorage.getItem("cn_tabs");
+    if (saved) {
+      try {
+        const parsed: Tab[] = JSON.parse(saved);
+        return parsed.map((t) => ({
+          ...t,
+          isDirty: t.isDirty ?? false,
+          lastSavedContent: t.lastSavedContent ?? t.content,
+        }));
+      } catch (e) {
+        console.error("Failed to parse saved tabs:", e);
+      }
     }
-  ]);
+    return [
+      {
+        id: "1",
+        title: "Note 1.txt",
+        content: `<h1>你好, 欢迎使用 Chinese Notebook! 🎯</h1><p>这是一个极简、100% 离线的中文学习编辑器。</p><p><b>💡 使用提示:</b></p><ul><li><b>反馈输入:</b> 用你的系统输入法 (IME) 输入中文并空格/回车确认，应用会立即朗读出你输入的词语，帮助你立刻校对同音字。</li><li><b>智能阅读:</b> 用鼠标<b>双击</b>或<b>拖拽选择</b>一段文本，应用将在 400 毫秒后自动朗读选择的内容。</li><li><b>即时查询:</b> 在朗读的同时，段落上方会出现浮动的词条词典弹窗。点击弹窗里的汉字词块，能立即在下方显示拼音和英文释义。</li><li><b>安静模式:</b> 在编辑器任意空白处单击一下，就会清除选择并立刻切断声音。</li></ul>`,
+        isDirty: false,
+        lastSavedContent: `<h1>你好, 欢迎使用 Chinese Notebook! 🎯</h1><p>这是一个极简、100% 离线的中文学习编辑器。</p><p><b>💡 使用提示:</b></p><ul><li><b>反馈输入:</b> 用你的系统输入法 (IME) 输入中文并空格/回车确认，应用会立即朗读出你输入的词语，帮助你立刻校对同音字。</li><li><b>智能阅读:</b> 用鼠标<b>双击</b>或<b>拖拽选择</b>一段文本，应用将在 400 毫秒后自动朗读选择的内容。</li><li><b>即时查询:</b> 在朗读的同时，段落上方会出现浮动的词条词典弹窗。点击弹窗里的汉字词块，能立即在下方显示拼音和英文释义。</li><li><b>安静模式:</b> 在编辑器任意空白处单击一下，就会清除选择并立刻切断声音。</li></ul>`,
+      },
+      {
+        id: "2",
+        title: "Reference.txt",
+        content: `<h1>学习中文 (Study Chinese) 📚</h1><p>这是你的第二侧分栏视窗，你可以用它来对照翻译，或者记录词汇笔记！</p><p><b>词汇积累:</b></p><ul><li>中文 (zhōng wén) - Chinese language</li><li>学习 (xué xí) - to learn / study</li><li>离线 (lí xiàn) - offline</li><li>编辑器 (biān jí qì) - editor</li></ul>`,
+        isDirty: false,
+        lastSavedContent: `<h1>学习中文 (Study Chinese) 📚</h1><p>这是你的第二侧分栏视窗，你可以用它来对照翻译，或者记录词汇笔记！</p><p><b>词汇积累:</b></p><ul><li>中文 (zhōng wén) - Chinese language</li><li>学习 (xué xí) - to learn / study</li><li>离线 (lí xiàn) - offline</li><li>编辑器 (biān jí qì) - editor</li></ul>`,
+      }
+    ];
+  });
 
-  // Split-Screen Panes State (horizontal tmux split)
-  const [panes, setPanes] = useState<Pane[]>([
-    { id: "left", activeTabId: "1" }
-  ]);
-  const [focusedPaneId, setFocusedPaneId] = useState<string>("left");
+  const [panes, setPanes] = useState<Pane[]>(() => {
+    const saved = localStorage.getItem("cn_panes");
+    return saved ? JSON.parse(saved) : [{ id: "left", activeTabId: "1" }];
+  });
+
+  const [focusedPaneId, setFocusedPaneId] = useState<string>(() => {
+    return localStorage.getItem("cn_focused_pane_id") || "left";
+  });
+
+  const [fontSize, setFontSize] = useState<number>(() => {
+    const saved = localStorage.getItem("cn_font_size");
+    return saved ? parseInt(saved, 10) : 20; // Default 20px
+  });
+
+  const [recentFiles, setRecentFiles] = useState<Array<{ id: string; title: string; content: string }>>(() => {
+    const saved = localStorage.getItem("cn_recent_files");
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   // Settings State (Persisted in localStorage)
   const [voiceName, setVoiceName] = useState<string>(() => {
@@ -48,11 +86,43 @@ export default function App() {
   // Browser voices list state
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
 
+  // Reference for file & folder pickers
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+
+  // 2. Local Storage Sync Effect Loops
+  useEffect(() => {
+    localStorage.setItem("cn_tabs", JSON.stringify(tabs));
+  }, [tabs]);
+
+  useEffect(() => {
+    localStorage.setItem("cn_panes", JSON.stringify(panes));
+  }, [panes]);
+
+  useEffect(() => {
+    localStorage.setItem("cn_focused_pane_id", focusedPaneId);
+  }, [focusedPaneId]);
+
+  useEffect(() => {
+    localStorage.setItem("cn_font_size", fontSize.toString());
+  }, [fontSize]);
+
+  useEffect(() => {
+    localStorage.setItem("cn_recent_files", JSON.stringify(recentFiles));
+  }, [recentFiles]);
+
+  useEffect(() => {
+    localStorage.setItem("cn_tts_voice", voiceName);
+  }, [voiceName]);
+
+  useEffect(() => {
+    localStorage.setItem("cn_tts_rate", speechRate.toString());
+  }, [speechRate]);
+
   // Load browser voices
   useEffect(() => {
     const updateVoices = () => {
       const voices = window.speechSynthesis.getVoices();
-      // Filter for Chinese voices
       const zhVoices = voices.filter(
         (v) =>
           v.lang.startsWith("zh-") ||
@@ -61,7 +131,6 @@ export default function App() {
       );
       setAvailableVoices(zhVoices);
       
-      // Auto-select first available Chinese voice if none is configured
       if (!voiceName && zhVoices.length > 0) {
         setVoiceName(zhVoices[0].name);
         localStorage.setItem("cn_tts_voice", zhVoices[0].name);
@@ -75,14 +144,8 @@ export default function App() {
     };
   }, [voiceName]);
 
-  // Persist settings changes
-  useEffect(() => {
-    localStorage.setItem("cn_tts_voice", voiceName);
-  }, [voiceName]);
-
-  useEffect(() => {
-    localStorage.setItem("cn_tts_rate", speechRate.toString());
-  }, [speechRate]);
+  // Active tab ID of the currently focused pane
+  const focusedActiveTabId = panes.find((p) => p.id === focusedPaneId)?.activeTabId || panes[0].activeTabId;
 
   // Tab Operations
   const handleNewTab = () => {
@@ -91,6 +154,8 @@ export default function App() {
       id: newId,
       title: `Untitled-${tabs.length + 1}.txt`,
       content: "",
+      isDirty: false,
+      lastSavedContent: "",
     };
     setTabs([...tabs, newTab]);
     
@@ -101,15 +166,24 @@ export default function App() {
   };
 
   const handleCloseTab = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent setting active tab on close button click
+    e.stopPropagation();
     
-    // Don't close if it's the last remaining tab, just clear it
+    const tabToClose = tabs.find((t) => t.id === id);
+    if (tabToClose?.isDirty) {
+      const confirmClose = confirm(
+        `You have unsaved changes in "${tabToClose.title}". Are you sure you want to close it without saving?`
+      );
+      if (!confirmClose) return;
+    }
+
     if (tabs.length === 1) {
       setTabs([
         {
           id: "1",
           title: "Note 1.txt",
           content: "",
+          isDirty: false,
+          lastSavedContent: "",
         },
       ]);
       setPanes(panes.map((p) => ({ ...p, activeTabId: "1" })));
@@ -130,7 +204,13 @@ export default function App() {
 
   const handleContentChange = (tabId: string, newContent: string) => {
     setTabs(
-      tabs.map((t) => (t.id === tabId ? { ...t, content: newContent } : t))
+      tabs.map((t) => {
+        if (t.id === tabId) {
+          const isDirty = newContent !== (t.lastSavedContent ?? "");
+          return { ...t, content: newContent, isDirty };
+        }
+        return t;
+      })
     );
   };
 
@@ -143,7 +223,6 @@ export default function App() {
   // Split view operations (columns tmux style)
   const handleToggleSplit = () => {
     if (panes.length === 1) {
-      // Find a different tab to show in right pane, otherwise show same one
       const currentActiveId = panes[0].activeTabId;
       const otherTab = tabs.find((t) => t.id !== currentActiveId) || tabs[0];
       
@@ -153,24 +232,282 @@ export default function App() {
       ]);
       setFocusedPaneId("right");
     } else {
-      // Close split: return to single left pane view
       setPanes([{ id: "left", activeTabId: panes[0].activeTabId }]);
       setFocusedPaneId("left");
     }
   };
 
-  const handleClosePane = (paneId: string) => {
-    if (panes.length > 1) {
-      const remainingPane = panes.find((p) => p.id !== paneId);
-      if (remainingPane) {
-        setPanes([{ id: "left", activeTabId: remainingPane.activeTabId }]);
-        setFocusedPaneId("left");
+  // File dropdown operations (Files)
+  const triggerOpenFile = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      const htmlContent = file.name.endsWith(".html") ? text : markdownToHtml(text);
+
+      const newId = Date.now().toString();
+      const newTab = {
+        id: newId,
+        title: file.name,
+        content: htmlContent,
+        isDirty: false,
+        lastSavedContent: htmlContent,
+      };
+      setTabs([...tabs, newTab]);
+      
+      setPanes(
+        panes.map((p) => (p.id === focusedPaneId ? { ...p, activeTabId: newId } : p))
+      );
+
+      // Save to recent files
+      const filtered = recentFiles.filter((f) => f.title !== file.name);
+      const updatedRecents = [{ id: newId, title: file.name, content: text }, ...filtered].slice(0, 5);
+      setRecentFiles(updatedRecents);
+    };
+    reader.readAsText(file);
+    e.target.value = ""; // Reset
+  };
+
+  // File dropdown operations (Folders)
+  const triggerOpenFolder = async () => {
+    const isTauri = typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__ !== undefined;
+    if (isTauri) {
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const files: Array<{ title: string; content: string; path: string }> = await invoke("open_folder_dialog");
+
+        if (files.length > 0) {
+          const newTabs: Tab[] = files.map((file, idx) => {
+            const htmlContent = file.title.endsWith(".html") ? file.content : markdownToHtml(file.content);
+            return {
+              id: (Date.now() + idx).toString(),
+              title: file.title,
+              content: htmlContent,
+              filePath: file.path,
+              isDirty: false,
+              lastSavedContent: htmlContent,
+            };
+          });
+
+          setTabs([...tabs, ...newTabs]);
+          setPanes(
+            panes.map((p) => (p.id === focusedPaneId ? { ...p, activeTabId: newTabs[0].id } : p))
+          );
+
+          // Add to recent files
+          const updatedRecents = [...files.map(f => ({ id: f.path, title: f.title, content: f.content })), ...recentFiles].slice(0, 5);
+          setRecentFiles(updatedRecents);
+          alert(`Loaded ${files.length} files from folder!`);
+        }
+        return;
+      } catch (err) {
+        console.error("Native folder dialog failed, using web picker fallback:", err);
       }
+    }
+
+    // Web Fallback: trigger HTML5 folder picker
+    folderInputRef.current?.click();
+  };
+
+  const handleFolderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    // Filter compatible text files
+    const textFiles = Array.from(files).filter(
+      (f) => f.name.endsWith(".txt") || f.name.endsWith(".md") || f.name.endsWith(".html")
+    );
+
+    if (textFiles.length === 0) {
+      alert("No compatible text files found in the selected folder.");
+      return;
+    }
+
+    let loadedCount = 0;
+    const loadedTabs: Tab[] = [];
+
+    textFiles.forEach((file, idx) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        const htmlContent = file.name.endsWith(".html") ? text : markdownToHtml(text);
+
+        loadedTabs.push({
+          id: (Date.now() + idx).toString(),
+          title: file.name,
+          content: htmlContent,
+          isDirty: false,
+          lastSavedContent: htmlContent,
+        });
+
+        loadedCount++;
+        if (loadedCount === textFiles.length) {
+          setTabs([...tabs, ...loadedTabs]);
+          setPanes(
+            panes.map((p) => (p.id === focusedPaneId ? { ...p, activeTabId: loadedTabs[0].id } : p))
+          );
+          alert(`Loaded ${loadedTabs.length} files from folder!`);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    e.target.value = ""; // Reset
+  };
+
+  const handleOpenRecent = (recentId: string) => {
+    const file = recentFiles.find((f) => f.id === recentId);
+    if (!file) return;
+
+    const alreadyOpen = tabs.find((t) => t.title === file.title);
+    if (alreadyOpen) {
+      setPanes(
+        panes.map((p) => (p.id === focusedPaneId ? { ...p, activeTabId: alreadyOpen.id } : p))
+      );
+    } else {
+      const newId = Date.now().toString();
+      const htmlContent = file.title.endsWith(".html") ? file.content : markdownToHtml(file.content);
+      const newTab = {
+        id: newId,
+        title: file.title,
+        content: htmlContent,
+        isDirty: false,
+        lastSavedContent: htmlContent,
+      };
+      setTabs([...tabs, newTab]);
+      setPanes(
+        panes.map((p) => (p.id === focusedPaneId ? { ...p, activeTabId: newId } : p))
+      );
     }
   };
 
-  // Active tab ID of the currently focused pane
-  const focusedActiveTabId = panes.find((p) => p.id === focusedPaneId)?.activeTabId || panes[0].activeTabId;
+  const handleSaveFile = async (isSaveAs: boolean = false) => {
+    const tab = tabs.find((t) => t.id === focusedActiveTabId);
+    if (!tab) return;
+
+    // Convert tab HTML structure to Markdown (or keep raw if HTML file)
+    const fileContent = tab.title.endsWith(".html") ? tab.content : htmlToMarkdown(tab.content);
+
+    const isTauri = typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__ !== undefined;
+
+    if (isTauri) {
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+
+        if (isSaveAs || !tab.filePath) {
+          // Native Save As Picker dialog
+          const savedPath: string = await invoke("save_file_as_dialog", {
+            content: fileContent,
+            defaultName: tab.title,
+          });
+
+          const filename = savedPath.split(/[/\\]/).pop() || tab.title;
+
+          setTabs(
+            tabs.map((t) =>
+              t.id === tab.id
+                ? {
+                    ...t,
+                    title: filename,
+                    filePath: savedPath,
+                    isDirty: false,
+                    lastSavedContent: tab.content,
+                  }
+                : t
+            )
+          );
+        } else {
+          // Silent direct save to loaded path
+          await invoke("save_file_to_disk", {
+            path: tab.filePath,
+            content: fileContent,
+          });
+          setTabs(
+            tabs.map((t) =>
+              t.id === tab.id
+                ? { ...t, isDirty: false, lastSavedContent: tab.content }
+                : t
+            )
+          );
+        }
+        return;
+      } catch (err) {
+        console.error("Native write failed, running browser fallback:", err);
+      }
+    }
+
+    // Web Fallback: download file Blob
+    const blob = new Blob([fileContent], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+
+    if (isSaveAs) {
+      const customName = prompt("Save file as:", tab.title);
+      if (!customName) return;
+      a.download = customName.endsWith(".txt") ? customName : `${customName}.txt`;
+      setTabs(
+        tabs.map((t) =>
+          t.id === tab.id
+            ? {
+                ...t,
+                title: a.download,
+                isDirty: false,
+                lastSavedContent: tab.content,
+              }
+            : t
+        )
+      );
+    } else {
+      a.download = tab.title;
+      setTabs(
+        tabs.map((t) =>
+          t.id === tab.id
+            ? { ...t, isDirty: false, lastSavedContent: tab.content }
+            : t
+        )
+      );
+    }
+
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Edit dropdown operations
+  const handleCopyAll = () => {
+    const tab = tabs.find((t) => t.id === focusedActiveTabId);
+    if (!tab) return;
+    const fileContent = tab.title.endsWith(".html") ? tab.content : htmlToMarkdown(tab.content);
+
+    navigator.clipboard.writeText(fileContent).then(() => {
+      alert("Document copied to clipboard!");
+    });
+  };
+
+  const handlePasteAll = () => {
+    navigator.clipboard.readText().then((clipText) => {
+      const tab = tabs.find((t) => t.id === focusedActiveTabId);
+      if (!tab) return;
+      const pastedHtml = tab.title.endsWith(".html") ? clipText : markdownToHtml(clipText);
+      handleContentChange(focusedActiveTabId, tab.content + pastedHtml);
+    }).catch((err) => {
+      console.error("Failed to read clipboard:", err);
+    });
+  };
+
+  const handleClearAll = () => {
+    if (confirm("Are you sure you want to clear this document's content?")) {
+      handleContentChange(focusedActiveTabId, "");
+    }
+  };
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-zinc-950 font-sans">
@@ -184,6 +521,36 @@ export default function App() {
         onOpenSettings={() => setSettingsOpen(true)}
         isSplit={panes.length > 1}
         onToggleSplit={handleToggleSplit}
+        onOpenFile={triggerOpenFile}
+        onOpenFolder={triggerOpenFolder}
+        onSaveFile={() => handleSaveFile(false)}
+        onSaveAs={() => handleSaveFile(true)}
+        recentFiles={recentFiles}
+        onOpenRecent={handleOpenRecent}
+        onCopyAll={handleCopyAll}
+        onPasteAll={handlePasteAll}
+        onClearAll={handleClearAll}
+        onToggleSearch={() => setSearchOpen(!searchOpen)}
+        searchActive={searchOpen}
+      />
+
+      {/* Hidden file input picker */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept=".txt,.md,.html"
+        className="hidden"
+      />
+
+      {/* Hidden folder input picker for web fallback */}
+      <input
+        type="file"
+        ref={folderInputRef}
+        onChange={handleFolderChange}
+        {...({ webkitdirectory: "", directory: "" } as any)}
+        multiple
+        className="hidden"
       />
 
       {/* Split Pane Editor Content Area */}
@@ -205,43 +572,17 @@ export default function App() {
                 }`}
                 onClick={() => setFocusedPaneId(pane.id)}
               >
-                {/* Micro Pane Toolbar Header */}
-                <div
-                  className={`h-7 px-3 flex items-center justify-between border-b text-[10px] uppercase font-bold tracking-wider shrink-0 select-none ${
-                    isActive
-                      ? "bg-zinc-900/60 border-zinc-850 text-blue-400"
-                      : "bg-zinc-950 border-zinc-900/80 text-zinc-500"
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-blue-500 animate-pulse" : "bg-zinc-700"}`} />
-                    <span>{isActive ? "Active View" : "Inactive View"}</span>
-                    <span className="text-zinc-800">|</span>
-                    <span className="text-zinc-400 normal-case">{tab.title}</span>
-                  </div>
-
-                  {panes.length > 1 && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleClosePane(pane.id);
-                      }}
-                      className="p-0.5 rounded hover:bg-zinc-800 hover:text-zinc-200 text-zinc-500 transition-colors cursor-pointer"
-                      title="Close view pane"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-
                 {/* Pane Editor Instance */}
                 <Editor
-                  key={pane.id + "-" + tab.id} // Reset selection overlays on switch/resize
+                  key={pane.id + "-" + tab.id} 
                   content={tab.content}
                   onChange={(content) => handleContentChange(pane.activeTabId, content)}
                   voiceName={voiceName}
                   isActivePane={isActive}
                   onFocus={() => setFocusedPaneId(pane.id)}
+                  searchOpen={searchOpen}
+                  onCloseSearch={() => setSearchOpen(false)}
+                  fontSize={fontSize}
                 />
               </div>
             </React.Fragment>
@@ -256,12 +597,12 @@ export default function App() {
             {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-zinc-800">
               <div className="flex items-center gap-2 text-white">
-                <Settings className="w-5 h-5 text-blue-500 animate-spin-slow" />
+                <Settings className="w-5 h-5 text-emerald-500 animate-spin-slow" />
                 <h2 className="text-sm font-bold tracking-wide uppercase">App Settings</h2>
               </div>
               <button
                 onClick={() => setSettingsOpen(false)}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -272,14 +613,14 @@ export default function App() {
               {/* Voice Selector */}
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold uppercase text-zinc-400 tracking-wider flex items-center gap-1.5">
-                  <Volume2 className="w-4 h-4 text-blue-500" />
+                  <Volume2 className="w-4 h-4 text-emerald-500" />
                   <span>Mandarin TTS Voice</span>
                 </label>
                 {availableVoices.length > 0 ? (
                   <select
                     value={voiceName}
                     onChange={(e) => setVoiceName(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-sm text-zinc-200 focus:outline-none focus:border-blue-600 transition-colors cursor-pointer"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-sm text-zinc-200 focus:outline-none focus:border-emerald-600 transition-colors cursor-pointer"
                   >
                     {availableVoices.map((voice) => (
                       <option key={voice.name} value={voice.name}>
@@ -301,10 +642,10 @@ export default function App() {
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between text-xs font-semibold uppercase text-zinc-400 tracking-wider">
                   <span className="flex items-center gap-1.5">
-                    <Sliders className="w-4 h-4 text-blue-500" />
+                    <Sliders className="w-4 h-4 text-emerald-500" />
                     <span>Speech Reading Speed</span>
                   </span>
-                  <span className="text-blue-400 font-mono">{speechRate.toFixed(2)}x</span>
+                  <span className="text-emerald-400 font-mono">{speechRate.toFixed(2)}x</span>
                 </div>
                 <input
                   type="range"
@@ -313,7 +654,7 @@ export default function App() {
                   step="0.05"
                   value={speechRate}
                   onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
-                  className="w-full h-1.5 bg-zinc-950 rounded-lg appearance-none cursor-pointer accent-blue-600 focus:outline-none"
+                  className="w-full h-1.5 bg-zinc-950 rounded-lg appearance-none cursor-pointer accent-emerald-600 focus:outline-none"
                 />
                 <div className="flex justify-between text-[10px] text-zinc-500 font-medium">
                   <span>Slower (0.5x)</span>
@@ -322,9 +663,33 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Stepper Font Size Input */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold uppercase text-zinc-400 tracking-wider flex items-center gap-1.5">
+                  <Sliders className="w-4 h-4 text-emerald-500" />
+                  <span>Editor Font Size</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="12"
+                    max="36"
+                    value={fontSize}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      if (!isNaN(val) && val >= 12 && val <= 36) {
+                        setFontSize(val);
+                      }
+                    }}
+                    className="w-24 bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-center text-sm font-semibold text-emerald-400 focus:outline-none focus:border-emerald-600"
+                  />
+                  <span className="text-[10px] text-zinc-500 font-medium">Min 12px, Max 36px</span>
+                </div>
+              </div>
+
               {/* Information / Help Banner */}
-              <div className="p-3 bg-blue-950/10 border border-blue-900/20 rounded-xl flex gap-2.5 text-xs text-zinc-400 leading-relaxed">
-                <HelpCircle className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+              <div className="p-3 bg-emerald-950/10 border border-emerald-900/20 rounded-xl flex gap-2.5 text-xs text-zinc-400 leading-relaxed">
+                <HelpCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold text-zinc-300">How "Hanzi First" Works:</span>
                   <p className="mt-1">
@@ -338,7 +703,7 @@ export default function App() {
             <div className="bg-zinc-900/40 p-4 border-t border-zinc-800 flex justify-end">
               <button
                 onClick={() => setSettingsOpen(false)}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-colors shadow-lg shadow-blue-500/20"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-colors shadow-lg shadow-emerald-500/20 cursor-pointer"
               >
                 Done
               </button>

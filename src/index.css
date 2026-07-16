@@ -55,7 +55,7 @@
   line-height: 2.5rem;
   letter-spacing: 0.05em;
   color: #e4e4e7;
-  caret-color: #3b82f6; /* Accent color caret */
+  caret-color: #10b981; /* Accent color caret (emerald-500) */
 }
 
 /* Stylings for markdown inside TipTap */
@@ -104,7 +104,7 @@
 }
 
 .ProseMirror blockquote {
-  border-left: 4px solid #3b82f6;
+  border-left: 4px solid #10b981;
   padding-left: 1rem;
   font-style: italic;
   color: #a1a1aa;

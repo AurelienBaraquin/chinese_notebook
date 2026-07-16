@@ -52,6 +52,10 @@ export interface WebTranslation {
   }[];
 }
 
+function hasChinese(str: string): boolean {
+  return /[\u4e00-\u9fa5\u3400-\u4dbf\uf900-\ufaff]/.test(str);
+}
+
 // Client-side Maximum Forward Matching segmenter powered by SQLite lookups
 export async function segmentAndTranslateWeb(text: string): Promise<WebTranslation[]> {
   try {
@@ -118,10 +122,12 @@ export async function segmentAndTranslateWeb(text: string): Promise<WebTranslati
       for (let len = Math.min(maxLen, remaining.length); len >= 1; len--) {
         const sub = remaining.substring(0, len);
         if (wordMap[sub]) {
-          result.push({
-            word: sub,
-            entries: wordMap[sub],
-          });
+          if (hasChinese(sub)) {
+            result.push({
+              word: sub,
+              entries: wordMap[sub],
+            });
+          }
           remaining = remaining.substring(len);
           matched = true;
           break;
@@ -130,10 +136,12 @@ export async function segmentAndTranslateWeb(text: string): Promise<WebTranslati
 
       if (!matched) {
         const char = remaining.substring(0, 1);
-        result.push({
-          word: char,
-          entries: wordMap[char] || [],
-        });
+        if (hasChinese(char)) {
+          result.push({
+            word: char,
+            entries: wordMap[char] || [],
+          });
+        }
         remaining = remaining.substring(1);
       }
     }

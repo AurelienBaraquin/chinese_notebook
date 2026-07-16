@@ -56,7 +56,7 @@ export default function TranslationPopup({ translations, x, y, showBelow, onSpea
               onClick={() => setSelectedWordIndex(idx)}
               className={`px-2 py-0.5 text-sm rounded-md transition-all font-medium ${
                 isActive
-                  ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-500/20"
+                  ? "bg-emerald-600 text-white font-semibold shadow-md shadow-emerald-500/20"
                   : hasLookup
                   ? "bg-zinc-800/60 hover:bg-zinc-700/60 text-zinc-200"
                   : "bg-zinc-900/30 hover:bg-zinc-800/30 text-zinc-500 line-through decoration-zinc-700"
@@ -87,7 +87,7 @@ export default function TranslationPopup({ translations, x, y, showBelow, onSpea
               </div>
               
               {hasEntries ? (
-                <div className="text-xs font-semibold text-blue-400 tracking-wide mt-0.5">
+                <div className="text-xs font-semibold text-emerald-400 tracking-wide mt-0.5">
                   {activeTranslation.entries.map(e => e.pinyin_accent).join(" / ")}
                 </div>
               ) : (
@@ -100,7 +100,7 @@ export default function TranslationPopup({ translations, x, y, showBelow, onSpea
             {/* Pronounce Button */}
             <button
               onClick={() => onSpeak(activeTranslation.word)}
-              className="p-1.5 rounded-lg bg-zinc-800/50 hover:bg-blue-900/40 hover:text-blue-400 text-zinc-400 transition-all border border-zinc-700/30 shrink-0"
+              className="p-1.5 rounded-lg bg-zinc-800/50 hover:bg-emerald-950/40 hover:text-emerald-400 text-zinc-400 transition-all border border-zinc-700/30 shrink-0"
               title="Pronounce word"
             >
               <Volume2 className="w-4 h-4" />
