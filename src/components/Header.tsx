@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Settings, Columns2, X } from "lucide-react";
+import { Plus, Settings, Columns2, X, Play, Keyboard } from "lucide-react";
 
 interface Tab {
   id: string;
@@ -29,6 +29,9 @@ interface HeaderProps {
   onClearAll: () => void;
   onToggleSearch: () => void;
   searchActive: boolean;
+  playbackBarOpen: boolean;
+  onTogglePlaybackBar: () => void;
+  onOpenShortcuts: () => void;
 }
 
 export default function Header({
@@ -53,6 +56,9 @@ export default function Header({
   onClearAll,
   onToggleSearch,
   searchActive,
+  playbackBarOpen,
+  onTogglePlaybackBar,
+  onOpenShortcuts,
 }: HeaderProps) {
   const [activeMenu, setActiveMenu] = useState<"file" | "edit" | null>(null);
 
@@ -66,12 +72,12 @@ export default function Header({
   }, [activeMenu]);
 
   return (
-    <header className="h-11 w-full bg-zinc-950/80 border-b border-zinc-800 flex items-center justify-between select-none glass shrink-0 z-40">
+    <header className="h-11 w-full bg-[var(--bg-panel)] border-b border-[var(--border-color)] flex items-center justify-between select-none glass shrink-0 z-40">
       {/* Left: App Logo & Menu Dropdowns */}
       <div className="flex items-center gap-2 pl-3 shrink-0">
-        <div className="flex items-center gap-1.5 text-zinc-400 mr-2">
+        <div className="flex items-center gap-1.5 text-[var(--text-secondary)] mr-2">
           <img src="/logo.png" className="w-4 h-4 object-contain rounded-sm" alt="Hanzi First Logo" />
-          <span className="text-xs font-bold tracking-wider uppercase text-zinc-300">Hanzi First</span>
+          <span className="text-xs font-bold tracking-wider uppercase text-[var(--text-primary)]">Hanzi First</span>
         </div>
         
         {/* File Menu Dropdown */}
@@ -83,71 +89,71 @@ export default function Header({
             }}
             className={`px-2.5 py-1 text-xs rounded-md font-semibold transition-colors flex items-center gap-1 cursor-pointer ${
               activeMenu === "file"
-                ? "bg-zinc-850 text-zinc-100"
-                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850/60"
+                ? "bg-[var(--bg-editor)] text-[var(--text-primary)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-editor)]/60"
             }`}
           >
             <span>File</span>
           </button>
           
           {activeMenu === "file" && (
-            <div className="absolute left-0 mt-1.5 w-48 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute left-0 mt-1.5 w-48 bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-lg shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
               <button
                 onClick={onNewTab}
-                className="w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-855 text-zinc-300 hover:text-white flex items-center justify-between cursor-pointer"
+                className="w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--bg-editor)]/50 text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-between cursor-pointer"
               >
                 <span>New Tab</span>
               </button>
               <button
                 onClick={onOpenFile}
-                className="w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-855 text-zinc-300 hover:text-white flex items-center justify-between cursor-pointer"
+                className="w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--bg-editor)]/50 text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-between cursor-pointer"
               >
                 <span>Open File...</span>
               </button>
               <button
                 onClick={onOpenFolder}
-                className="w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-855 text-zinc-300 hover:text-white flex items-center justify-between cursor-pointer"
+                className="w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--bg-editor)]/50 text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-between cursor-pointer"
               >
                 <span>Open Folder...</span>
               </button>
               <button
                 onClick={onSaveFile}
-                className="w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-855 text-zinc-300 hover:text-white flex items-center justify-between cursor-pointer"
+                className="w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--bg-editor)]/50 text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-between cursor-pointer"
               >
                 <span>Save File</span>
               </button>
               <button
                 onClick={onSaveAs}
-                className="w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-855 text-zinc-300 hover:text-white flex items-center justify-between cursor-pointer"
+                className="w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--bg-editor)]/50 text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-between cursor-pointer"
               >
                 <span>Save As...</span>
               </button>
               
-              <div className="border-t border-zinc-800/80 my-1"></div>
+              <div className="border-t border-[var(--border-color)]/80 my-1"></div>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onToggleAutoSave();
                 }}
-                className="w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-855 text-zinc-300 hover:text-white flex items-center justify-between cursor-pointer"
+                className="w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--bg-editor)]/50 text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-between cursor-pointer"
               >
                 <span>Auto-Save</span>
-                <span className={`text-[10px] font-bold ${autoSaveEnabled ? "text-emerald-400" : "text-zinc-650"}`}>
+                <span className={`text-[10px] font-bold ${autoSaveEnabled ? "text-[var(--accent-color)]" : "text-[var(--text-secondary)]/60"}`}>
                   {autoSaveEnabled ? "✓ ON" : "OFF"}
                 </span>
               </button>
               
               {recentFiles.length > 0 && (
                 <>
-                  <div className="border-t border-zinc-800/80 my-1"></div>
-                  <div className="px-3 py-1 text-[9px] font-bold text-zinc-500 uppercase tracking-wider">
+                  <div className="border-t border-[var(--border-color)]/80 my-1"></div>
+                  <div className="px-3 py-1 text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
                     Recent Files
                   </div>
                   {recentFiles.map((file) => (
                     <button
                       key={file.id}
                       onClick={() => onOpenRecent(file.id)}
-                      className="w-full px-3 py-1 text-left text-xs hover:bg-zinc-850 text-zinc-400 hover:text-zinc-200 truncate cursor-pointer"
+                      className="w-full px-3 py-1 text-left text-xs hover:bg-[var(--bg-editor)]/50 text-[var(--text-secondary)] hover:text-[var(--text-primary)] truncate cursor-pointer"
                       title={file.title}
                     >
                       {file.title}
@@ -168,38 +174,38 @@ export default function Header({
             }}
             className={`px-2.5 py-1 text-xs rounded-md font-semibold transition-colors flex items-center gap-1 cursor-pointer ${
               activeMenu === "edit"
-                ? "bg-zinc-800 text-zinc-100"
-                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
+                ? "bg-[var(--bg-editor)] text-[var(--text-primary)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-editor)]/60"
             }`}
           >
             <span>Edit</span>
           </button>
           
           {activeMenu === "edit" && (
-            <div className="absolute left-0 mt-1.5 w-48 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute left-0 mt-1.5 w-48 bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-lg shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
               <button
                 onClick={onCopyAll}
-                className="w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-850 text-zinc-300 hover:text-white flex items-center justify-between cursor-pointer"
+                className="w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--bg-editor)]/50 text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-between cursor-pointer"
               >
                 <span>Copy Document</span>
               </button>
               <button
                 onClick={onPasteAll}
-                className="w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-850 text-zinc-300 hover:text-white flex items-center justify-between cursor-pointer"
+                className="w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--bg-editor)]/50 text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-between cursor-pointer"
               >
                 <span>Paste Clipboard</span>
               </button>
               <button
                 onClick={onClearAll}
-                className="w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-850 text-zinc-300 hover:text-white flex items-center justify-between cursor-pointer"
+                className="w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--bg-editor)]/50 text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-between cursor-pointer"
               >
                 <span>Clear Document</span>
               </button>
-              <div className="border-t border-zinc-800/80 my-1"></div>
+              <div className="border-t border-[var(--border-color)]/80 my-1"></div>
               <button
                 onClick={onToggleSearch}
-                className={`w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-850 flex items-center justify-between cursor-pointer ${
-                  searchActive ? "text-emerald-400 font-bold" : "text-zinc-300 hover:text-white"
+                className={`w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--bg-editor)]/50 flex items-center justify-between cursor-pointer ${
+                  searchActive ? "text-[var(--accent-color)] font-bold" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 <span>Find & Replace</span>
@@ -213,8 +219,8 @@ export default function Header({
           onClick={onToggleSplit}
           className={`px-2.5 py-1 text-xs rounded-md transition-colors flex items-center gap-1 cursor-pointer ${
             isSplit
-              ? "bg-emerald-950/40 text-emerald-400 border border-emerald-800/50"
-              : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
+              ? "bg-[var(--accent-color)]/20 text-[var(--accent-color)] border border-[var(--accent-color)]/30"
+              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-editor)]/60"
           }`}
           title={isSplit ? "Single View" : "Split View (Tmux)"}
         >
@@ -233,17 +239,17 @@ export default function Header({
               onClick={() => setActiveTabId(tab.id)}
               className={`group h-8 px-3 flex items-center gap-2 border-t-2 rounded-t-md text-xs font-semibold cursor-pointer transition-all shrink-0 ${
                 isActive
-                  ? "bg-zinc-900 border-emerald-500 text-zinc-200 shadow-lg"
-                  : "border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40"
+                  ? "bg-[var(--bg-editor)] border-[var(--accent-color)] text-[var(--text-primary)] shadow-lg"
+                  : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-editor)]/40"
               }`}
             >
               <span>{tab.title}</span>
               {tab.isDirty && (
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="Unsaved changes" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-color)] shrink-0" title="Unsaved changes" />
               )}
               <button
                 onClick={(e) => onCloseTab(tab.id, e)}
-                className="p-0.5 rounded-full hover:bg-zinc-800 text-zinc-600 hover:text-zinc-300 transition-colors opacity-60 group-hover:opacity-100"
+                className="p-0.5 rounded-full hover:bg-[var(--bg-app)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors opacity-60 group-hover:opacity-100"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -254,17 +260,42 @@ export default function Header({
         {/* Plus Button */}
         <button
           onClick={onNewTab}
-          className="h-7 w-7 mb-0.5 flex items-center justify-center rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50 transition-colors shrink-0 cursor-pointer"
+          className="h-7 w-7 mb-0.5 flex items-center justify-center rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-editor)]/50 transition-colors shrink-0 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Right: Settings button */}
-      <div className="flex items-center h-full pr-3 shrink-0">
+      {/* Right: Actions and Settings */}
+      <div className="flex items-center h-full pr-3 gap-1 shrink-0">
+        {/* Playback player bar toggle */}
+        <button
+          onClick={onTogglePlaybackBar}
+          className={`px-2.5 py-1 text-xs rounded-md transition-colors flex items-center gap-1 cursor-pointer ${
+            playbackBarOpen
+              ? "bg-[var(--accent-color)]/20 text-[var(--accent-color)] border border-[var(--accent-color)]/30 font-bold"
+              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]/60"
+          }`}
+          title="Toggle Read Aloud Player"
+        >
+          <Play className="w-3.5 h-3.5 animate-pulse" />
+          <span>Read Aloud</span>
+        </button>
+
+        {/* Shortcuts button */}
+        <button
+          onClick={onOpenShortcuts}
+          className="px-2.5 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]/60 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
+          title="Keyboard Shortcuts Cheatsheet"
+        >
+          <Keyboard className="w-3.5 h-3.5" />
+          <span>Shortcuts</span>
+        </button>
+
+        {/* Settings button */}
         <button
           onClick={onOpenSettings}
-          className="px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
+          className="px-2.5 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]/60 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
           title="Open Settings"
         >
           <Settings className="w-3.5 h-3.5" />

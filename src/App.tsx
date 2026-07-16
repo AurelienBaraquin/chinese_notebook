@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import Header from "./components/Header";
 import Editor from "./components/Editor";
 import SettingsModal from "./components/SettingsModal";
+import ShortcutsModal from "./components/ShortcutsModal";
+import PlaybackPlayer from "./components/PlaybackPlayer";
 import { useSpeech } from "./hooks/useSpeech";
 
 interface Tab {
@@ -63,11 +65,6 @@ export default function App() {
     return localStorage.getItem("cn_focused_pane_id") || "left";
   });
 
-  const [fontSize, setFontSize] = useState<number>(() => {
-    const saved = localStorage.getItem("cn_font_size");
-    return saved ? parseInt(saved, 10) : 20; // Default 20px
-  });
-
   const [recentFiles, setRecentFiles] = useState<Array<{ id: string; title: string; content: string; filePath?: string; fileHandle?: any }>>(() => {
     const saved = localStorage.getItem("cn_recent_files");
     return saved ? JSON.parse(saved) : [];
@@ -79,6 +76,8 @@ export default function App() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [playbackBarOpen, setPlaybackBarOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   // Settings State (Persisted in localStorage managed by custom hook)
   const {
@@ -107,9 +106,6 @@ export default function App() {
     localStorage.setItem("cn_focused_pane_id", focusedPaneId);
   }, [focusedPaneId]);
 
-  useEffect(() => {
-    localStorage.setItem("cn_font_size", fontSize.toString());
-  }, [fontSize]);
 
   useEffect(() => {
     const cleanRecents = recentFiles.map(({ fileHandle, ...rest }) => rest);
@@ -856,8 +852,65 @@ export default function App() {
     }
   };
 
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore shortcuts if user is typing inside text input elements (to avoid breaking typing)
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        // Allow ONLY specific system shortcuts like Save (Ctrl+S) even inside text areas
+        if (!(e.ctrlKey && e.key.toLowerCase() === "s")) {
+          return;
+        }
+      }
+
+      if (e.ctrlKey) {
+        switch (e.key.toLowerCase()) {
+          case "/":
+            e.preventDefault();
+            setShortcutsOpen((prev) => !prev);
+            break;
+          case "n":
+            e.preventDefault();
+            handleNewTab();
+            break;
+          case "w":
+            e.preventDefault();
+            const activeTab = tabs.find((t) => t.id === focusedActiveTabId);
+            if (activeTab) {
+              handleCloseTab(activeTab.id, { stopPropagation: () => {} } as any);
+            }
+            break;
+          case "s":
+            e.preventDefault();
+            if (e.altKey) {
+              handleSaveFile(true); // Save As
+            } else {
+              handleSaveFile(false); // Save
+            }
+            break;
+          case "p":
+            e.preventDefault();
+            setPlaybackBarOpen((prev) => !prev);
+            break;
+          default:
+            break;
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [tabs, focusedActiveTabId, handleNewTab, handleCloseTab, handleSaveFile]);
+
+  const activeTab = tabs.find((t) => t.id === focusedActiveTabId) || tabs[0];
+
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden bg-zinc-950 font-sans">
+    <div className="h-screen w-screen flex flex-col overflow-hidden bg-[var(--bg-app)] text-[var(--text-primary)] font-sans">
       {/* Titlebar Header */}
       <Header
         tabs={tabs}
@@ -881,6 +934,9 @@ export default function App() {
         onClearAll={handleClearAll}
         onToggleSearch={() => setSearchOpen(!searchOpen)}
         searchActive={searchOpen}
+        playbackBarOpen={playbackBarOpen}
+        onTogglePlaybackBar={() => setPlaybackBarOpen(!playbackBarOpen)}
+        onOpenShortcuts={() => setShortcutsOpen(true)}
       />
 
       {/* Hidden file input picker */}
@@ -903,7 +959,7 @@ export default function App() {
       />
 
       {/* Split Pane Editor Content Area */}
-      <div className="flex-1 flex overflow-hidden relative bg-zinc-950">
+      <div className="flex-1 flex overflow-hidden relative bg-[var(--bg-app)]">
         {panes.map((pane, idx) => {
           const tab = tabs.find((t) => t.id === pane.activeTabId) || tabs[0];
           const isActive = pane.id === focusedPaneId;
@@ -912,12 +968,12 @@ export default function App() {
             <React.Fragment key={pane.id}>
               {/* Column Separator */}
               {idx > 0 && (
-                <div className="w-[1px] bg-zinc-800 shrink-0 h-full select-none pointer-events-none" />
+                <div className="w-[1px] bg-[var(--border-color)] shrink-0 h-full select-none pointer-events-none" />
               )}
               
               <div
                 className={`flex-1 flex flex-col h-full overflow-hidden relative ${
-                  isActive ? "bg-zinc-900/10" : "bg-zinc-950/20"
+                  isActive ? "bg-[var(--bg-editor)]" : "bg-[var(--bg-panel)]/50"
                 }`}
                 onClick={() => setFocusedPaneId(pane.id)}
               >
@@ -934,7 +990,6 @@ export default function App() {
                   }}
                   searchOpen={searchOpen}
                   onCloseSearch={() => setSearchOpen(false)}
-                  fontSize={fontSize}
                 />
               </div>
             </React.Fragment>
@@ -946,13 +1001,27 @@ export default function App() {
       <SettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
-        fontSize={fontSize}
-        setFontSize={setFontSize}
         voiceName={voiceName}
         setVoiceName={setVoiceName}
         speechRate={speechRate}
         setSpeechRate={setSpeechRate}
         availableVoices={availableVoices}
+      />
+
+      {/* Floating Read Aloud Playback Player */}
+      <PlaybackPlayer
+        isOpen={playbackBarOpen}
+        onClose={() => setPlaybackBarOpen(false)}
+        tabTitle={activeTab?.title || "Document"}
+        tabContent={activeTab?.content || ""}
+        voiceName={voiceName}
+        speechRate={speechRate}
+      />
+
+      {/* Keyboard Shortcuts Cheatsheet */}
+      <ShortcutsModal
+        isOpen={shortcutsOpen}
+        onClose={() => setShortcutsOpen(false)}
       />
     </div>
   );

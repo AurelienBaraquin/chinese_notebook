@@ -14,7 +14,6 @@ interface EditorProps {
   onFocus: () => void;
   searchOpen: boolean;
   onCloseSearch: () => void;
-  fontSize: number;
 }
 
 export default function Editor({ 
@@ -25,7 +24,6 @@ export default function Editor({
   onFocus,
   searchOpen,
   onCloseSearch,
-  fontSize
 }: EditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [popupData, setPopupData] = useState<{
@@ -287,21 +285,13 @@ export default function Editor({
   return (
     <div
       ref={containerRef}
-      className={`relative flex-1 w-full h-full overflow-y-auto cursor-text transition-all duration-300 bg-zinc-950 ${
+      className={`relative flex-1 w-full h-full overflow-y-auto cursor-text transition-all duration-300 bg-[var(--bg-editor)] text-[var(--text-primary)] ${
         isActivePane 
-          ? "border-t-2 border-emerald-600/90 shadow-[inset_0_4px_20px_rgba(16,185,129,0.05)]" 
-          : "border-t-2 border-zinc-900 opacity-70"
+          ? "border-t-2 border-[var(--accent-color)] shadow-[inset_0_4px_20px_rgba(16,185,129,0.05)]" 
+          : "border-t-2 border-[var(--border-color)] opacity-70"
       }`}
       onClick={handleContainerClick}
     >
-      {/* Dynamic Font Styling Injector */}
-      <style>{`
-        .ProseMirror {
-          font-size: ${fontSize}px !important;
-          line-height: ${fontSize * 1.6}px !important;
-        }
-      `}</style>
-
       {/* TipTap editor element */}
       <div className="max-w-4xl mx-auto min-h-full pb-32">
         <EditorContent editor={editor} className="h-full" />
@@ -322,31 +312,31 @@ export default function Editor({
       {searchOpen && (
         <div 
           onClick={(e) => e.stopPropagation()}
-          className="absolute bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800 px-4 py-2 flex items-center justify-between gap-3 text-xs z-30 animate-in slide-in-from-bottom duration-150"
+          className="absolute bottom-0 left-0 right-0 bg-[var(--bg-panel)] border-t border-[var(--border-color)] px-4 py-2 flex items-center justify-between gap-3 text-xs z-30 animate-in slide-in-from-bottom duration-150 text-[var(--text-primary)]"
         >
           <div className="flex flex-wrap items-center gap-2 flex-1">
-            <div className="flex items-center gap-1.5 bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200">
+            <div className="flex items-center gap-1.5 bg-[var(--bg-editor)] border border-[var(--border-color)] rounded-lg px-2 py-1 text-[var(--text-primary)]">
               <input
                 type="text"
                 placeholder="Find..."
                 value={findText}
                 onChange={(e) => setFindText(e.target.value)}
-                className="bg-transparent border-none outline-none text-zinc-200 placeholder-zinc-600 w-28 md:w-36 text-xs"
+                className="bg-transparent border-none outline-none text-[var(--text-primary)] placeholder-[var(--text-secondary)] w-28 md:w-36 text-xs"
               />
               {findText && (
-                <span className="text-[10px] text-zinc-500 font-mono">
+                <span className="text-[10px] text-[var(--text-secondary)] font-mono">
                   {matchCount} match{matchCount !== 1 ? "es" : ""}
                 </span>
               )}
             </div>
             
-            <div className="flex items-center gap-1.5 bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-200">
+            <div className="flex items-center gap-1.5 bg-[var(--bg-editor)] border border-[var(--border-color)] rounded-lg px-2 py-1 text-[var(--text-primary)]">
               <input
                 type="text"
                 placeholder="Replace with..."
                 value={replaceText}
                 onChange={(e) => setReplaceText(e.target.value)}
-                className="bg-transparent border-none outline-none text-zinc-200 placeholder-zinc-600 w-28 md:w-36 text-xs"
+                className="bg-transparent border-none outline-none text-[var(--text-primary)] placeholder-[var(--text-secondary)] w-28 md:w-36 text-xs"
               />
             </div>
             
@@ -357,21 +347,21 @@ export default function Editor({
                   (window as any).find(findText, false, false, true);
                 }
               }}
-              className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-md transition-colors font-semibold cursor-pointer"
+              className="px-2.5 py-1 bg-[var(--bg-editor)] border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-md transition-colors font-semibold cursor-pointer"
             >
               Find Next
             </button>
             
             <button
               onClick={handleReplace}
-              className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-md transition-colors font-semibold cursor-pointer"
+              className="px-2.5 py-1 bg-[var(--bg-editor)] border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-md transition-colors font-semibold cursor-pointer"
             >
               Replace
             </button>
             
             <button
               onClick={handleReplaceAll}
-              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition-colors font-semibold shadow-md shadow-emerald-500/10 cursor-pointer"
+              className="px-2.5 py-1 bg-[var(--accent-color)] text-white hover:opacity-90 rounded-md transition-all font-semibold shadow-md shadow-emerald-500/10 cursor-pointer"
             >
               Replace All
             </button>
@@ -379,7 +369,7 @@ export default function Editor({
           
           <button
             onClick={onCloseSearch}
-            className="p-1 rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors cursor-pointer"
+            className="p-1 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
             title="Close Search bar"
           >
             <X className="w-4 h-4" />
