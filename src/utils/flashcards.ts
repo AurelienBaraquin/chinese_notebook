@@ -25,36 +25,49 @@ function isChinese(ch: string): boolean {
  * Given raw editor content, extract all unique Chinese characters and 2-char
  * words, look each up in CC-CEDICT, and return formatted flashcard text.
  *
- * Output format (plain text, one entry per line):
- *   字  pinyin  definition
+ * Only merges consecutive Chinese chars into 2-char words when they are
+ * actually adjacent on the same line (no line break between them).
  */
 export async function generateFlashcards(content: string): Promise<string> {
   console.log("[Flashcards] Starting generation, content length:", content.length);
   const db = await getWebSqlDb();
   console.log("[Flashcards] Database loaded");
 
-  // 1. Extract all Chinese characters from the content, preserving order
-  const allChinese: string[] = [];
-  for (const ch of content) {
-    if (isChinese(ch)) {
-      allChinese.push(ch);
+  // 1. Split into lines, extract Chinese chars per line (preserving adjacency)
+  const lines = content.split("\n");
+  const lineChinese: string[][] = [];
+  for (const line of lines) {
+    const chars: string[] = [];
+    for (const ch of line) {
+      if (isChinese(ch)) chars.push(ch);
+    }
+    if (chars.length > 0) {
+      lineChinese.push(chars);
     }
   }
 
-  console.log("[Flashcards] Found", allChinese.length, "Chinese characters");
+  const totalChars = lineChinese.reduce((sum, l) => sum + l.length, 0);
+  console.log("[Flashcards] Found", totalChars, "Chinese characters across", lineChinese.length, "lines");
 
-  if (allChinese.length === 0) {
+  if (totalChars === 0) {
     return "(No Chinese characters found in this document.)";
   }
 
-  // 2. Build unique 2-char word candidates from consecutive chars
+  // 2. Build unique 2-char word candidates ONLY from chars adjacent on the same line
   const twoCharWords = new Set<string>();
-  for (let i = 0; i < allChinese.length - 1; i++) {
-    twoCharWords.add(allChinese[i] + allChinese[i + 1]);
+  for (const lineChars of lineChinese) {
+    for (let i = 0; i < lineChars.length - 1; i++) {
+      twoCharWords.add(lineChars[i] + lineChars[i + 1]);
+    }
   }
 
-  // Also collect unique single chars
-  const singleChars = new Set(allChinese);
+  // Collect unique single chars
+  const singleChars = new Set<string>();
+  for (const lineChars of lineChinese) {
+    for (const ch of lineChars) {
+      singleChars.add(ch);
+    }
+  }
 
   // 3. Batch-query dictionary for all candidates
   const allCandidates = [...twoCharWords, ...singleChars];
@@ -93,36 +106,38 @@ export async function generateFlashcards(content: string): Promise<string> {
 
   console.log("[Flashcards] Dictionary matches:", Object.keys(dictMap).length);
 
-  // 4. Walk through the text, greedily match 2-char words first, then single chars
-  const seen = new Set<string>();
+  // 4. Walk each line independently, greedily match 2-char words first
+  const seenGlobal = new Set<string>();
   const entries: { word: string; pinyin: string; defs: string[] }[] = [];
-  let i = 0;
 
-  while (i < allChinese.length) {
-    // Try 2-char match first
-    if (i < allChinese.length - 1) {
-      const pair = allChinese[i] + allChinese[i + 1];
-      if (dictMap[pair] && !seen.has(pair)) {
-        seen.add(pair);
-        const entry = dictMap[pair];
-        entries.push({ word: pair, pinyin: entry.pinyin, defs: trimDefinitions(entry.definitions) });
-        i += 2;
-        continue;
+  for (const lineChars of lineChinese) {
+    let i = 0;
+    while (i < lineChars.length) {
+      // Try 2-char match first
+      if (i < lineChars.length - 1) {
+        const pair = lineChars[i] + lineChars[i + 1];
+        if (dictMap[pair] && !seenGlobal.has(pair)) {
+          seenGlobal.add(pair);
+          const entry = dictMap[pair];
+          entries.push({ word: pair, pinyin: entry.pinyin, defs: trimDefinitions(entry.definitions) });
+          i += 2;
+          continue;
+        }
       }
-    }
 
-    // Fallback to single char
-    const ch = allChinese[i];
-    if (!seen.has(ch)) {
-      seen.add(ch);
-      if (dictMap[ch]) {
-        const entry = dictMap[ch];
-        entries.push({ word: ch, pinyin: entry.pinyin, defs: trimDefinitions(entry.definitions) });
-      } else {
-        entries.push({ word: ch, pinyin: "—", defs: ["—"] });
+      // Fallback to single char
+      const ch = lineChars[i];
+      if (!seenGlobal.has(ch)) {
+        seenGlobal.add(ch);
+        if (dictMap[ch]) {
+          const entry = dictMap[ch];
+          entries.push({ word: ch, pinyin: entry.pinyin, defs: trimDefinitions(entry.definitions) });
+        } else {
+          entries.push({ word: ch, pinyin: "—", defs: ["—"] });
+        }
       }
+      i++;
     }
-    i++;
   }
 
   console.log("[Flashcards] Final entries:", entries.length);
@@ -140,19 +155,18 @@ export async function generateFlashcards(content: string): Promise<string> {
 
   // Pad helper: pad string to fixed width (accounts for CJK double-width)
   const pad = (str: string, width: number) => {
-    // CJK chars take 2 columns in a monospace font
     const visualLen = [...str].reduce((acc, ch) => acc + (isChinese(ch) ? 2 : 1), 0);
     return str + " ".repeat(Math.max(1, width - visualLen + 3));
   };
 
   // 6. Build plain text output
-  const lines: string[] = [];
+  const resultLines: string[] = [];
   for (const e of entries) {
     const defStr = e.defs.length > 0 ? e.defs.join(" / ") : "—";
-    lines.push(`${pad(e.word, colWidths.word)}${pad(e.pinyin, colWidths.pinyin)}${defStr}`);
+    resultLines.push(`${pad(e.word, colWidths.word)}${pad(e.pinyin, colWidths.pinyin)}${defStr}`);
   }
 
-  const result = lines.join("\n");
+  const result = resultLines.join("\n");
   console.log("[Flashcards] Output length:", result.length);
   return result;
 }

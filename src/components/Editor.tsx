@@ -191,7 +191,13 @@ export default function Editor({
               const containerRect = containerRef.current.getBoundingClientRect();
 
               // Compute relative position inside the container
-              const x = rect.left - containerRect.left + rect.width / 2;
+              const containerWidth = containerRect.width;
+              const popupHalfWidth = window.innerWidth >= 768 ? 192 : 160; // w-96 or w-80
+
+              // Center on selection, but clamp so popup stays fully inside the pane
+              let x = rect.left - containerRect.left + rect.width / 2;
+              x = Math.max(popupHalfWidth + 8, Math.min(x, containerWidth - popupHalfWidth - 8));
+
               const yTop = rect.top - containerRect.top;
               const yBottom = rect.bottom - containerRect.top;
 
@@ -268,7 +274,7 @@ export default function Editor({
   return (
     <div
       ref={containerRef}
-      className={`relative flex-1 w-full h-full overflow-y-auto cursor-text transition-all duration-300 bg-[var(--bg-editor)] text-[var(--text-primary)] ${
+      className={`relative flex-1 w-full h-full overflow-hidden cursor-text transition-all duration-300 bg-[var(--bg-editor)] text-[var(--text-primary)] ${
         isActivePane 
           ? "border-t-2 border-[var(--accent-color)] shadow-[inset_0_4px_20px_rgba(16,185,129,0.05)]" 
           : "border-t-2 border-[var(--border-color)] opacity-70"
@@ -276,7 +282,7 @@ export default function Editor({
       onClick={handleContainerClick}
     >
       {/* TipTap editor element */}
-      <div className="max-w-4xl mx-auto min-h-full pb-32">
+      <div className="max-w-4xl mx-auto min-h-full pb-32 overflow-y-auto h-full">
         <EditorContent editor={editor} className="h-full" />
       </div>
 
