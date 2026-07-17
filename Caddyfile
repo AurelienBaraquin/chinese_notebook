@@ -1,0 +1,35 @@
+:80 {
+    # Set the webroot
+    root * /srv
+    
+    # Compress all responses (zstd and gzip)
+    encode gzip zstd
+    
+    # Fallback to index.html for React Router / SPA routing
+    try_files {path} /index.html
+    
+    # Enable static file server
+    file_server
+
+    # Set security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+
+    # Set cache control for long-term immutable assets (Vite builds inject hashes)
+    @static_assets {
+        path /assets/*
+    }
+    header @static_assets Cache-Control "public, max-age=31536000, immutable"
+
+    # Set cache control for the SQLite database (immutable, 1 year)
+    @sqlite_db {
+        path /cedict.db
+    }
+    header @sqlite_db {
+        Cache-Control "public, max-age=31536000, immutable"
+        Content-Type "application/octet-stream"
+    }
+}

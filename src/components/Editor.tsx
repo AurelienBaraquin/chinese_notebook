@@ -166,18 +166,8 @@ export default function Editor({
         speak(selectedText);
 
         try {
-          let res: any[];
-          // Check if running inside Tauri context
-          const isTauri = typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__ !== undefined;
-          
-          if (isTauri) {
-            // Dynamically import Tauri core to query SQLite backend
-            const { invoke } = await import("@tauri-apps/api/core");
-            res = await invoke("translate_selection", { text: selectedText });
-          } else {
-            // Web environment: query WebAssembly SQLite database
-            res = await segmentAndTranslateWeb(selectedText);
-          }
+          // Web environment: query WebAssembly SQLite database
+          const res = await segmentAndTranslateWeb(selectedText);
 
           // Find coordinates of the selection
           const selection = window.getSelection();
@@ -208,34 +198,6 @@ export default function Editor({
           }
         } catch (err) {
           console.error("Translation SQLite lookup failed:", err);
-          
-          // Fallback to Web WASM SQLite if native invoke fails
-          try {
-            const res = await segmentAndTranslateWeb(selectedText);
-            const selection = window.getSelection();
-            if (selection && selection.rangeCount > 0 && containerRef.current) {
-              const range = selection.getRangeAt(0);
-              const rects = range.getClientRects();
-              if (rects.length > 0) {
-                const rect = rects[0];
-                const containerRect = containerRef.current.getBoundingClientRect();
-                const x = rect.left - containerRect.left + rect.width / 2;
-                const yTop = rect.top - containerRect.top;
-                const yBottom = rect.bottom - containerRect.top;
-
-                const showBelow = yTop < 240;
-                const y = showBelow ? yBottom : yTop;
-
-                setPopupData({
-                  translations: res,
-                  x,
-                  y,
-                  showBelow,
-                });
-                return;
-              }
-            }
-          } catch {}
           setPopupData(null);
         }
       }, 400);

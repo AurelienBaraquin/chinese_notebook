@@ -81,7 +81,7 @@ def build_db():
     with zipfile.ZipFile("cedict.zip", "r") as zip_ref:
         zip_ref.extractall(".")
 
-    db_dir = "src-tauri/resources"
+    db_dir = "public"
     os.makedirs(db_dir, exist_ok=True)
     db_path = os.path.join(db_dir, "cedict.db")
 
@@ -93,9 +93,14 @@ def build_db():
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
+    # Performance optimizations for bulk loading
+    cursor.execute("PRAGMA journal_mode = OFF;")
+    cursor.execute("PRAGMA synchronous = OFF;")
+    cursor.execute("PRAGMA cache_size = 10000;")
+
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS dictionary (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id INTEGER PRIMARY KEY,
         traditional TEXT NOT NULL,
         simplified TEXT NOT NULL,
         pinyin TEXT NOT NULL,
@@ -158,6 +163,8 @@ def build_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_traditional ON dictionary (traditional);")
 
     conn.commit()
+    print("=== Defragmenting and vacuuming SQLite database ===")
+    cursor.execute("VACUUM;")
     conn.close()
 
     print("=== Cleaning up temporary files ===")

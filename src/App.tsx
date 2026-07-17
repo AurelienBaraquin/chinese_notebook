@@ -5,12 +5,12 @@ import SettingsModal from "./components/SettingsModal";
 import ShortcutsModal from "./components/ShortcutsModal";
 import PlaybackPlayer from "./components/PlaybackPlayer";
 import { useSpeech } from "./hooks/useSpeech";
+import { getFileHandle, saveFileHandle, deleteFileHandle } from "./utils/db";
 
 interface Tab {
   id: string;
   title: string;
   content: string;
-  filePath?: string;
   fileHandle?: any;
   isDirty?: boolean;
   lastSavedContent?: string;
@@ -65,7 +65,7 @@ export default function App() {
     return localStorage.getItem("cn_focused_pane_id") || "left";
   });
 
-  const [recentFiles, setRecentFiles] = useState<Array<{ id: string; title: string; content: string; filePath?: string; fileHandle?: any }>>(() => {
+  const [recentFiles, setRecentFiles] = useState<Array<{ id: string; title: string; content: string; fileHandle?: any }>>(() => {
     const saved = localStorage.getItem("cn_recent_files");
     return saved ? JSON.parse(saved) : [];
   });
@@ -120,14 +120,10 @@ export default function App() {
   // Load browser file handles from IndexedDB on startup
   useEffect(() => {
     const loadHandles = async () => {
-      const isTauri = typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__ !== undefined;
-      if (isTauri) return;
-
       try {
-        const { getFileHandle } = await import("./utils/db");
         const handlesMap: Record<string, any> = {};
         for (const tab of tabs) {
-          if (!tab.filePath && !tab.fileHandle) {
+          if (!tab.fileHandle) {
             const handle = await getFileHandle(tab.id);
             if (handle) {
               handlesMap[tab.id] = handle;
@@ -162,31 +158,12 @@ export default function App() {
     if (!autoSaveEnabled) return;
 
     const activeTab = tabs.find((t) => t.id === focusedActiveTabId);
-    if (!activeTab || !activeTab.isDirty || (!activeTab.filePath && !activeTab.fileHandle)) return;
+    if (!activeTab || !activeTab.isDirty || !activeTab.fileHandle) return;
 
     const timer = setTimeout(async () => {
-      const isTauri = typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__ !== undefined;
       const fileContent = activeTab.content;
 
-      if (isTauri && activeTab.filePath) {
-        try {
-          const { writeTextFile } = await import("@tauri-apps/plugin-fs");
-          await writeTextFile(activeTab.filePath, fileContent);
-          
-          // Reset dirty state silently
-          setTabs((prev) =>
-            prev.map((t) =>
-              t.id === activeTab.id
-                ? { ...t, isDirty: false, lastSavedContent: activeTab.content }
-                : t
-            )
-          );
-          console.log(`Auto-saved file to disk (Tauri): ${activeTab.title}`);
-        } catch (err) {
-          console.error("Auto-save write operation failed:", err);
-        }
-      } else if (activeTab.fileHandle) {
-        // Web Auto-Save fallback using File System Access API
+      if (activeTab.fileHandle) {
         try {
           const writable = await activeTab.fileHandle.createWritable();
           await writable.write(fileContent);
@@ -240,9 +217,7 @@ export default function App() {
     }
 
     // Delete file handle from IndexedDB on close
-    import("./utils/db").then(({ deleteFileHandle }) => {
-      deleteFileHandle(id).catch(console.error);
-    }).catch(console.error);
+    deleteFileHandle(id).catch(console.error);
 
     if (tabs.length === 1) {
       setTabs([
@@ -277,7 +252,7 @@ export default function App() {
           const isDirty = newContent !== (t.lastSavedContent ?? "");
 
           // Request write permission if not granted on typing user gesture
-          if (t.fileHandle && isDirty && !t.filePath) {
+          if (t.fileHandle && isDirty) {
             t.fileHandle.queryPermission({ mode: "readwrite" }).then(async (status: string) => {
               if (status !== "granted") {
                 try {
@@ -303,7 +278,7 @@ export default function App() {
 
     // Request write permission on tab switch user gesture
     const tab = tabs.find(t => t.id === id);
-    if (tab && tab.fileHandle && !tab.filePath) {
+    if (tab && tab.fileHandle) {
       try {
         const status = await tab.fileHandle.queryPermission({ mode: "readwrite" });
         if (status !== "granted") {
@@ -317,7 +292,7 @@ export default function App() {
 
   const handleEditorFocus = async (tabId: string) => {
     const tab = tabs.find((t) => t.id === tabId);
-    if (tab && tab.fileHandle && !tab.filePath) {
+    if (tab && tab.fileHandle) {
       try {
         const status = await tab.fileHandle.queryPermission({ mode: "readwrite" });
         if (status !== "granted") {
@@ -349,52 +324,6 @@ export default function App() {
 
   // File dropdown operations (Files)
   const triggerOpenFile = async () => {
-    const isTauri = typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__ !== undefined;
-    if (isTauri) {
-      try {
-        const { open } = await import("@tauri-apps/plugin-dialog");
-        const { readTextFile } = await import("@tauri-apps/plugin-fs");
-
-        const selected = await open({
-          multiple: false,
-          directory: false,
-          filters: [{ name: 'Text/Markdown/HTML', extensions: ['txt', 'md', 'html'] }]
-        });
-
-        if (selected) {
-          const content = await readTextFile(selected as string);
-          const htmlContent = content;
-
-          const newId = Date.now().toString();
-          const filename = (selected as string).split(/[/\\]/).pop() || "Untitled.txt";
-          const newTab = {
-            id: newId,
-            title: filename,
-            content: htmlContent,
-            filePath: selected as string,
-            isDirty: false,
-            lastSavedContent: htmlContent,
-          };
-          setTabs([...tabs, newTab]);
-          
-          setPanes(
-            panes.map((p) => (p.id === focusedPaneId ? { ...p, activeTabId: newId } : p))
-          );
-
-          // Add to recent files
-          const filtered = recentFiles.filter((f) => f.title !== filename);
-          const updatedRecents = [
-            { id: selected as string, title: filename, content: content, filePath: selected as string },
-            ...filtered
-          ].slice(0, 5);
-          setRecentFiles(updatedRecents);
-        }
-        return;
-      } catch (err) {
-        console.error("Tauri dialog open failed:", err);
-      }
-    }
-
     // Web Fallback: Try File System Access API first
     if (typeof window !== "undefined" && "showOpenFilePicker" in window) {
       try {
@@ -421,7 +350,6 @@ export default function App() {
           lastSavedContent: htmlContent,
         };
 
-        const { saveFileHandle } = await import("./utils/db");
         await saveFileHandle(newId, handle);
 
         setTabs([...tabs, newTab]);
@@ -480,70 +408,6 @@ export default function App() {
 
   // File dropdown operations (Folders)
   const triggerOpenFolder = async () => {
-    const isTauri = typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__ !== undefined;
-    if (isTauri) {
-      try {
-        const { open } = await import("@tauri-apps/plugin-dialog");
-        const { readTextFile, readDir } = await import("@tauri-apps/plugin-fs");
-        const { join } = await import("@tauri-apps/api/path");
-
-        const selectedDir = await open({
-          multiple: false,
-          directory: true,
-        });
-
-        if (selectedDir) {
-          const entries = await readDir(selectedDir as string);
-          const textEntries = entries.filter(
-            (e) => e.isFile && (e.name.endsWith(".txt") || e.name.endsWith(".md") || e.name.endsWith(".html"))
-          );
-
-          if (textEntries.length === 0) {
-            alert("No compatible text files found in the selected directory.");
-            return;
-          }
-
-          const loadedTabs: Tab[] = [];
-          for (let i = 0; i < textEntries.length; i++) {
-            const entry = textEntries[i];
-            const filePath = await join(selectedDir as string, entry.name);
-            const content = await readTextFile(filePath);
-            const htmlContent = content;
-
-            loadedTabs.push({
-              id: (Date.now() + i).toString(),
-              title: entry.name,
-              content: htmlContent,
-              filePath: filePath,
-              isDirty: false,
-              lastSavedContent: htmlContent,
-            });
-          }
-
-          setTabs([...tabs, ...loadedTabs]);
-          setPanes(
-            panes.map((p) => (p.id === focusedPaneId ? { ...p, activeTabId: loadedTabs[0].id } : p))
-          );
-
-          // Add first loaded file to recent files list
-          const updatedRecents = [
-            {
-              id: loadedTabs[0].filePath!,
-              title: loadedTabs[0].title,
-              content: loadedTabs[0].content,
-              filePath: loadedTabs[0].filePath
-            },
-            ...recentFiles
-          ].slice(0, 5);
-          setRecentFiles(updatedRecents);
-          alert(`Loaded ${loadedTabs.length} files from folder!`);
-        }
-        return;
-      } catch (err) {
-        console.error("Tauri native folder dialog failed, using web picker fallback:", err);
-      }
-    }
-
     // Web Fallback: Try File System Access API showDirectoryPicker
     if (typeof window !== "undefined" && "showDirectoryPicker" in window) {
       try {
@@ -568,7 +432,6 @@ export default function App() {
                 lastSavedContent: htmlContent,
               });
               
-              const { saveFileHandle } = await import("./utils/db");
               await saveFileHandle(entryId, entry);
               idx++;
             }
@@ -657,7 +520,6 @@ export default function App() {
         id: newId,
         title: file.title,
         content: htmlContent,
-        filePath: file.filePath,
         fileHandle: file.fileHandle,
         isDirty: false,
         lastSavedContent: htmlContent,
@@ -674,62 +536,6 @@ export default function App() {
     if (!tab) return;
 
     const fileContent = tab.content;
-
-    const isTauri = typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__ !== undefined;
-
-    if (isTauri) {
-      try {
-        const { save } = await import("@tauri-apps/plugin-dialog");
-        const { writeTextFile } = await import("@tauri-apps/plugin-fs");
-
-        if (isSaveAs || !tab.filePath) {
-          // Native Save As Picker dialog
-          const savedPath = await save({
-            defaultPath: tab.title,
-            filters: [{ name: 'Text/Markdown/HTML', extensions: ['txt', 'md', 'html'] }]
-          });
-
-          if (!savedPath) return; // Save cancelled by user
-
-          await writeTextFile(savedPath, fileContent);
-          const filename = savedPath.split(/[/\\]/).pop() || tab.title;
-
-          const filtered = recentFiles.filter((f) => f.title !== filename);
-          const updatedRecents = [
-            { id: savedPath, title: filename, content: fileContent, filePath: savedPath },
-            ...filtered
-          ].slice(0, 5);
-          setRecentFiles(updatedRecents);
-
-          setTabs(
-            tabs.map((t) =>
-              t.id === tab.id
-                ? {
-                    ...t,
-                    title: filename,
-                    filePath: savedPath,
-                    isDirty: false,
-                    lastSavedContent: tab.content,
-                  }
-                : t
-            )
-          );
-        } else {
-          // Silent direct save to loaded path
-          await writeTextFile(tab.filePath, fileContent);
-          setTabs(
-            tabs.map((t) =>
-              t.id === tab.id
-                ? { ...t, isDirty: false, lastSavedContent: tab.content }
-                : t
-            )
-          );
-        }
-        return;
-      } catch (err) {
-        console.error("Tauri native write failed:", err);
-      }
-    }
 
     // Web Fallback: Try File System Access API showSaveFilePicker first
     if (typeof window !== "undefined" && ("showSaveFilePicker" in window || tab.fileHandle)) {
@@ -753,7 +559,6 @@ export default function App() {
           await writable.write(fileContent);
           await writable.close();
 
-          const { saveFileHandle } = await import("./utils/db");
           await saveFileHandle(tab.id, handle);
 
           const file = await handle.getFile();
