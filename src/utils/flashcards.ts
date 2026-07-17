@@ -1,10 +1,18 @@
 import { getWebSqlDb } from "./webSql";
 
 /**
- * Regex matching a line that contains ONLY Chinese characters (1 or 2).
- * Allows optional whitespace around them but nothing else.
+ * Trim a raw CC-CEDICT definition list down to the most essential meanings.
  */
-const STANDALONE_LINE_RE = /^[\s]*([\u4e00-\u9fa5\u3400-\u4dbf\uf900-\ufaff]{1,2})[\s]*$/;
+function trimDefinitions(raw: string[]): string[] {
+  const cleaned: string[] = [];
+  for (const def of raw) {
+    if (/^CL:/i.test(def)) continue;
+    let d = def.replace(/\s*\([^)]*\)/g, "").trim();
+    d = d.replace(/^CL:\S+\s*/, "").trim();
+    if (d) cleaned.push(d);
+  }
+  return cleaned.slice(0, 2);
+}
 
 /**
  * Check if a character is Chinese (CJK Unified Ideographs).
@@ -14,67 +22,43 @@ function isChinese(ch: string): boolean {
 }
 
 /**
- * Trim a raw CC-CEDICT definition list down to the most essential meanings.
- * - Removes classifier annotations (CL:...)
- * - Removes dialect/Archaic/ Literary markers
- * - Takes only the first 2 concise definitions
- */
-function trimDefinitions(raw: string[]): string[] {
-  const cleaned: string[] = [];
-  for (const def of raw) {
-    // Skip classifier lines
-    if (/^CL:/i.test(def)) continue;
-    // Strip parenthetical qualifiers like "(dialect)", "(archaic)", "Literary"
-    let d = def.replace(/\s*\([^)]*\)/g, "").trim();
-    // Strip leading "CL:..." if attached
-    d = d.replace(/^CL:\S+\s*/, "").trim();
-    if (d) cleaned.push(d);
-  }
-  // Return at most 2 concise definitions
-  return cleaned.slice(0, 2);
-}
-
-/**
- * Given raw editor content (markdown), extract all unique standalone Chinese
- * characters and 2-character words (lines containing ONLY that word/char),
- * look each up in the CC-CEDICT dictionary, and return a markdown table.
+ * Given raw editor content, extract all unique Chinese characters and 2-char
+ * words, look each up in CC-CEDICT, and return a markdown table.
  *
- * Output format:
- * | 字 | 拼音 | 释义 |
- * |---|---|---|
- * | 人 | rén | person |
+ * - Scans the ENTIRE content for Chinese text
+ * - Groups consecutive Chinese chars into 2-char word candidates
+ * - Single chars are shown if no 2-char word covers them
+ * - Everything is deduplicated
  */
 export async function generateFlashcards(content: string): Promise<string> {
   const db = await getWebSqlDb();
 
-  // 1. Extract unique tokens from standalone lines
-  const lines = content.split("\n");
-  const seen = new Set<string>();
-  const tokens: string[] = [];
-
-  for (const line of lines) {
-    const match = line.match(STANDALONE_LINE_RE);
-    if (match) {
-      const token = match[1];
-      // For 2-char tokens, both chars must be Chinese
-      if (token.length === 2 && (!isChinese(token[0]) || !isChinese(token[1]))) {
-        continue;
-      }
-      if (!seen.has(token)) {
-        seen.add(token);
-        tokens.push(token);
-      }
+  // 1. Extract all Chinese characters from the content, preserving order
+  const allChinese: string[] = [];
+  for (const ch of content) {
+    if (isChinese(ch)) {
+      allChinese.push(ch);
     }
   }
 
-  if (tokens.length === 0) {
-    return "(No standalone Chinese characters found on their own lines.)";
+  if (allChinese.length === 0) {
+    return "(No Chinese characters found in this document.)";
   }
 
-  // 2. Query dictionary for all tokens in one batch
-  const placeholders = tokens.map(() => "?").join(",");
+  // 2. Build unique 2-char word candidates from consecutive chars
+  const twoCharWords = new Set<string>();
+  for (let i = 0; i < allChinese.length - 1; i++) {
+    twoCharWords.add(allChinese[i] + allChinese[i + 1]);
+  }
+
+  // Also collect unique single chars
+  const singleChars = new Set(allChinese);
+
+  // 3. Batch-query dictionary for all candidates
+  const allCandidates = [...twoCharWords, ...singleChars];
+  const placeholders = allCandidates.map(() => "?").join(",");
   const query = `SELECT simplified, traditional, pinyin_accent, definitions FROM dictionary WHERE simplified IN (${placeholders}) OR traditional IN (${placeholders})`;
-  const params = [...tokens, ...tokens];
+  const params = [...allCandidates, ...allCandidates];
 
   const stmt = db.prepare(query);
   stmt.bind(params);
@@ -94,7 +78,6 @@ export async function generateFlashcards(content: string): Promise<string> {
       definitions = [definitions_json];
     }
 
-    // Prefer simplified key, but also store traditional if different
     if (!dictMap[simplified]) {
       dictMap[simplified] = { pinyin: pinyin_accent, definitions };
     }
@@ -104,17 +87,47 @@ export async function generateFlashcards(content: string): Promise<string> {
   }
   stmt.free();
 
-  // 3. Build markdown table
-  const rows: string[] = ["| 字 | 拼音 | 释义 |", "|---|---|---|"];
-  for (const token of tokens) {
-    const entry = dictMap[token];
-    if (entry) {
-      const defs = trimDefinitions(entry.definitions);
-      const defStr = defs.length > 0 ? defs.join(" / ") : "—";
-      rows.push(`| ${token} | ${entry.pinyin} | ${defStr} |`);
-    } else {
-      rows.push(`| ${token} | — | — |`);
+  // 4. Walk through the text, greedily match 2-char words first, then single chars
+  const seen = new Set<string>();
+  const entries: { word: string; pinyin: string; defs: string[] }[] = [];
+  let i = 0;
+
+  while (i < allChinese.length) {
+    // Try 2-char match first
+    if (i < allChinese.length - 1) {
+      const pair = allChinese[i] + allChinese[i + 1];
+      if (dictMap[pair] && !seen.has(pair)) {
+        seen.add(pair);
+        const entry = dictMap[pair];
+        entries.push({ word: pair, pinyin: entry.pinyin, defs: trimDefinitions(entry.definitions) });
+        i += 2;
+        continue;
+      }
     }
+
+    // Fallback to single char
+    const ch = allChinese[i];
+    if (!seen.has(ch)) {
+      seen.add(ch);
+      if (dictMap[ch]) {
+        const entry = dictMap[ch];
+        entries.push({ word: ch, pinyin: entry.pinyin, defs: trimDefinitions(entry.definitions) });
+      } else {
+        entries.push({ word: ch, pinyin: "—", defs: ["—"] });
+      }
+    }
+    i++;
+  }
+
+  if (entries.length === 0) {
+    return "(No dictionary entries found.)";
+  }
+
+  // 5. Build markdown table
+  const rows: string[] = ["| 字 | 拼音 | 释义 |", "|---|---|---|"];
+  for (const e of entries) {
+    const defStr = e.defs.length > 0 ? e.defs.join(" / ") : "—";
+    rows.push(`| ${e.word} | ${e.pinyin} | ${defStr} |`);
   }
 
   return rows.join("\n");
