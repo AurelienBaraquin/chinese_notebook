@@ -87,11 +87,11 @@ export default function TranslationPopup({ translations, x, y, showBelow, onSpea
               </div>
               
               {hasEntries ? (
-                <div className="text-xs font-semibold text-emerald-400 tracking-wide mt-0.5">
+                <div className="text-md font-semibold text-emerald-400 tracking-wide mt-0.5">
                   {activeTranslation.entries.map(e => e.pinyin_accent).join(" / ")}
                 </div>
               ) : (
-                <div className="text-xs text-zinc-600 italic mt-0.5">
+                <div className="text-md text-zinc-600 italic mt-0.5">
                   No dictionary entry found
                 </div>
               )}
