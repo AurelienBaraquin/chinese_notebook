@@ -14,12 +14,35 @@ function isChinese(ch: string): boolean {
 }
 
 /**
+ * Trim a raw CC-CEDICT definition list down to the most essential meanings.
+ * - Removes classifier annotations (CL:...)
+ * - Removes dialect/Archaic/ Literary markers
+ * - Takes only the first 2 concise definitions
+ */
+function trimDefinitions(raw: string[]): string[] {
+  const cleaned: string[] = [];
+  for (const def of raw) {
+    // Skip classifier lines
+    if (/^CL:/i.test(def)) continue;
+    // Strip parenthetical qualifiers like "(dialect)", "(archaic)", "Literary"
+    let d = def.replace(/\s*\([^)]*\)/g, "").trim();
+    // Strip leading "CL:..." if attached
+    d = d.replace(/^CL:\S+\s*/, "").trim();
+    if (d) cleaned.push(d);
+  }
+  // Return at most 2 concise definitions
+  return cleaned.slice(0, 2);
+}
+
+/**
  * Given raw editor content (markdown), extract all unique standalone Chinese
  * characters and 2-character words (lines containing ONLY that word/char),
- * look each up in the CC-CEDICT dictionary, and return formatted flashcard text.
+ * look each up in the CC-CEDICT dictionary, and return a markdown table.
  *
- * Output format per line:
- *   字  pinyin_accent  definition1 / definition2
+ * Output format:
+ * | 字 | 拼音 | 释义 |
+ * |---|---|---|
+ * | 人 | rén | person |
  */
 export async function generateFlashcards(content: string): Promise<string> {
   const db = await getWebSqlDb();
@@ -81,17 +104,18 @@ export async function generateFlashcards(content: string): Promise<string> {
   }
   stmt.free();
 
-  // 3. Build flashcard lines
-  const result: string[] = [];
+  // 3. Build markdown table
+  const rows: string[] = ["| 字 | 拼音 | 释义 |", "|---|---|---|"];
   for (const token of tokens) {
     const entry = dictMap[token];
     if (entry) {
-      const defStr = entry.definitions.join(" / ");
-      result.push(`${token}  ${entry.pinyin}  ${defStr}`);
+      const defs = trimDefinitions(entry.definitions);
+      const defStr = defs.length > 0 ? defs.join(" / ") : "—";
+      rows.push(`| ${token} | ${entry.pinyin} | ${defStr} |`);
     } else {
-      result.push(`${token}  —  (no entry found)`);
+      rows.push(`| ${token} | — | — |`);
     }
   }
 
-  return result.join("\n");
+  return rows.join("\n");
 }
