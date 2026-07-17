@@ -27,6 +27,7 @@ interface HeaderProps {
   onCopyAll: () => void;
   onPasteAll: () => void;
   onClearAll: () => void;
+  onGenerateFlashcards: () => void;
   onToggleSearch: () => void;
   searchActive: boolean;
   playbackBarOpen: boolean;
@@ -56,6 +57,7 @@ export default function Header({
   onCopyAll,
   onPasteAll,
   onClearAll,
+  onGenerateFlashcards,
   onToggleSearch,
   searchActive,
   playbackBarOpen,
@@ -204,6 +206,14 @@ export default function Header({
                 className="w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--bg-editor)]/50 text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-between cursor-pointer"
               >
                 <span>Clear Document</span>
+              </button>
+              <div className="border-t border-[var(--border-color)]/80 my-1"></div>
+              <button
+                onClick={() => { onGenerateFlashcards(); setActiveMenu(null); }}
+                className="w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--bg-editor)]/50 text-[var(--accent-color)] hover:text-[var(--text-primary)] flex items-center justify-between cursor-pointer"
+              >
+                <span>Generate Flashcards</span>
+                <span className="text-[9px] text-[var(--text-secondary)]/60">Fiche</span>
               </button>
               <div className="border-t border-[var(--border-color)]/80 my-1"></div>
               <button

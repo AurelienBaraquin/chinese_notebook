@@ -6,6 +6,7 @@ import ShortcutsModal from "./components/ShortcutsModal";
 import PlaybackPlayer from "./components/PlaybackPlayer";
 import { useSpeech } from "./hooks/useSpeech";
 import { getFileHandle, saveFileHandle, deleteFileHandle } from "./utils/db";
+import { generateFlashcards } from "./utils/flashcards";
 
 interface Tab {
   id: string;
@@ -658,6 +659,35 @@ export default function App() {
     }
   };
 
+  const handleGenerateFlashcards = async () => {
+    const tab = tabs.find((t) => t.id === focusedActiveTabId);
+    if (!tab) return;
+
+    try {
+      const flashcardText = await generateFlashcards(tab.content);
+      const newId = Date.now().toString();
+      const newTab: Tab = {
+        id: newId,
+        title: `Fiche — ${tab.title.replace(/\.\w+$/, "")}.md`,
+        content: flashcardText,
+        isDirty: false,
+        lastSavedContent: flashcardText,
+      };
+
+      setTabs((prev) => [...prev, newTab]);
+
+      // Switch to split view with original on left, flashcard on right
+      setPanes([
+        { id: "left", activeTabId: focusedActiveTabId },
+        { id: "right", activeTabId: newId },
+      ]);
+      setFocusedPaneId("right");
+    } catch (err) {
+      console.error("Flashcard generation failed:", err);
+      alert("Failed to generate flashcards. Make sure the dictionary is loaded.");
+    }
+  };
+
   // Global Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -746,6 +776,7 @@ export default function App() {
         onCopyAll={handleCopyAll}
         onPasteAll={handlePasteAll}
         onClearAll={handleClearAll}
+        onGenerateFlashcards={handleGenerateFlashcards}
         onToggleSearch={() => setSearchOpen(!searchOpen)}
         searchActive={searchOpen}
         playbackBarOpen={playbackBarOpen}
