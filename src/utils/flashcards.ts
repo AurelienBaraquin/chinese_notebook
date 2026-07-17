@@ -23,15 +23,15 @@ function isChinese(ch: string): boolean {
 
 /**
  * Given raw editor content, extract all unique Chinese characters and 2-char
- * words, look each up in CC-CEDICT, and return a markdown table.
+ * words, look each up in CC-CEDICT, and return formatted flashcard text.
  *
- * - Scans the ENTIRE content for Chinese text
- * - Groups consecutive Chinese chars into 2-char word candidates
- * - Single chars are shown if no 2-char word covers them
- * - Everything is deduplicated
+ * Output format (plain text, one entry per line):
+ *   字  pinyin  definition
  */
 export async function generateFlashcards(content: string): Promise<string> {
+  console.log("[Flashcards] Starting generation, content length:", content.length);
   const db = await getWebSqlDb();
+  console.log("[Flashcards] Database loaded");
 
   // 1. Extract all Chinese characters from the content, preserving order
   const allChinese: string[] = [];
@@ -40,6 +40,8 @@ export async function generateFlashcards(content: string): Promise<string> {
       allChinese.push(ch);
     }
   }
+
+  console.log("[Flashcards] Found", allChinese.length, "Chinese characters");
 
   if (allChinese.length === 0) {
     return "(No Chinese characters found in this document.)";
@@ -56,6 +58,8 @@ export async function generateFlashcards(content: string): Promise<string> {
 
   // 3. Batch-query dictionary for all candidates
   const allCandidates = [...twoCharWords, ...singleChars];
+  console.log("[Flashcards] Querying dictionary for", allCandidates.length, "candidates");
+
   const placeholders = allCandidates.map(() => "?").join(",");
   const query = `SELECT simplified, traditional, pinyin_accent, definitions FROM dictionary WHERE simplified IN (${placeholders}) OR traditional IN (${placeholders})`;
   const params = [...allCandidates, ...allCandidates];
@@ -86,6 +90,8 @@ export async function generateFlashcards(content: string): Promise<string> {
     }
   }
   stmt.free();
+
+  console.log("[Flashcards] Dictionary matches:", Object.keys(dictMap).length);
 
   // 4. Walk through the text, greedily match 2-char words first, then single chars
   const seen = new Set<string>();
@@ -119,16 +125,20 @@ export async function generateFlashcards(content: string): Promise<string> {
     i++;
   }
 
+  console.log("[Flashcards] Final entries:", entries.length);
+
   if (entries.length === 0) {
     return "(No dictionary entries found.)";
   }
 
-  // 5. Build markdown table
-  const rows: string[] = ["| 字 | 拼音 | 释义 |", "|---|---|---|"];
+  // 5. Build plain text output (guaranteed to render in TipTap)
+  const lines: string[] = ["# Fiche de vocabulaire", ""];
   for (const e of entries) {
     const defStr = e.defs.length > 0 ? e.defs.join(" / ") : "—";
-    rows.push(`| ${e.word} | ${e.pinyin} | ${defStr} |`);
+    lines.push(`${e.word}  ${e.pinyin}  ${defStr}`);
   }
 
-  return rows.join("\n");
+  const result = lines.join("\n");
+  console.log("[Flashcards] Output length:", result.length);
+  return result;
 }
