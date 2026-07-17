@@ -131,11 +131,25 @@ export async function generateFlashcards(content: string): Promise<string> {
     return "(No dictionary entries found.)";
   }
 
-  // 5. Build plain text output (guaranteed to render in TipTap)
-  const lines: string[] = ["# Fiche de vocabulaire", ""];
+  // 5. Calculate column widths for alignment
+  const colWidths = { word: 0, pinyin: 0 };
+  for (const e of entries) {
+    colWidths.word = Math.max(colWidths.word, e.word.length);
+    colWidths.pinyin = Math.max(colWidths.pinyin, e.pinyin.length);
+  }
+
+  // Pad helper: pad string to fixed width (accounts for CJK double-width)
+  const pad = (str: string, width: number) => {
+    // CJK chars take 2 columns in a monospace font
+    const visualLen = [...str].reduce((acc, ch) => acc + (isChinese(ch) ? 2 : 1), 0);
+    return str + " ".repeat(Math.max(1, width - visualLen + 3));
+  };
+
+  // 6. Build plain text output
+  const lines: string[] = [];
   for (const e of entries) {
     const defStr = e.defs.length > 0 ? e.defs.join(" / ") : "—";
-    lines.push(`${e.word}  ${e.pinyin}  ${defStr}`);
+    lines.push(`${pad(e.word, colWidths.word)}${pad(e.pinyin, colWidths.pinyin)}${defStr}`);
   }
 
   const result = lines.join("\n");
