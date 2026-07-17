@@ -137,6 +137,15 @@ export default function Editor({
           }
           return false;
         },
+        // Insert spaces on Tab instead of changing focus
+        keydown: (_view, event) => {
+          if (event.key === "Tab" && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+            event.preventDefault();
+            editor?.commands.insertContent("    ");
+            return true;
+          }
+          return false;
+        },
       },
     },
     // Listen to selection changes for debounced dictionary lookup and TTS reading
