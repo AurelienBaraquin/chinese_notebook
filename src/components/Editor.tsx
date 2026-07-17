@@ -14,6 +14,7 @@ interface EditorProps {
   onFocus: () => void;
   searchOpen: boolean;
   onCloseSearch: () => void;
+  onRegisterCommands?: (cmds: { undo: () => void; redo: () => void }) => void;
 }
 
 export default function Editor({ 
@@ -24,6 +25,7 @@ export default function Editor({
   onFocus,
   searchOpen,
   onCloseSearch,
+  onRegisterCommands,
 }: EditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [popupData, setPopupData] = useState<{
@@ -235,6 +237,16 @@ export default function Editor({
       window.speechSynthesis.removeEventListener("voiceschanged", handleVoices);
     };
   }, []);
+
+  // Register undo/redo commands to parent whenever editor or active state updates
+  useEffect(() => {
+    if (editor && isActivePane && onRegisterCommands) {
+      onRegisterCommands({
+        undo: () => editor.chain().focus().undo().run(),
+        redo: () => editor.chain().focus().redo().run(),
+      });
+    }
+  }, [editor, isActivePane, onRegisterCommands]);
 
   // Focus editor when clicking empty space in the container
   const handleContainerClick = () => {

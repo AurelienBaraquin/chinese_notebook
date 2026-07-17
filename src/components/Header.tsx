@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Settings, Columns2, X, Play, Keyboard } from "lucide-react";
+import { Plus, Settings, Columns2, X, Play, Keyboard, Undo2, Redo2 } from "lucide-react";
 
 interface Tab {
   id: string;
@@ -32,6 +32,8 @@ interface HeaderProps {
   playbackBarOpen: boolean;
   onTogglePlaybackBar: () => void;
   onOpenShortcuts: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
 }
 
 export default function Header({
@@ -59,6 +61,8 @@ export default function Header({
   playbackBarOpen,
   onTogglePlaybackBar,
   onOpenShortcuts,
+  onUndo,
+  onRedo,
 }: HeaderProps) {
   const [activeMenu, setActiveMenu] = useState<"file" | "edit" | null>(null);
 
@@ -213,6 +217,24 @@ export default function Header({
             </div>
           )}
         </div>
+
+        {/* Undo Button */}
+        <button
+          onClick={onUndo}
+          className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-editor)]/60 rounded-md transition-colors cursor-pointer"
+          title="Undo (Ctrl+Z)"
+        >
+          <Undo2 className="w-3.5 h-3.5" />
+        </button>
+
+        {/* Redo Button */}
+        <button
+          onClick={onRedo}
+          className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-editor)]/60 rounded-md transition-colors cursor-pointer"
+          title="Redo (Ctrl+Y)"
+        >
+          <Redo2 className="w-3.5 h-3.5" />
+        </button>
 
         {/* Split View Toggle Button */}
         <button

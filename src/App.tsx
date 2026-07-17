@@ -84,6 +84,14 @@ export default function App() {
   // Reference for file & folder pickers (Web Fallback)
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const activeEditorCommandsRef = useRef<{ undo: () => void; redo: () => void } | null>(null);
+
+  const handleUndo = () => {
+    activeEditorCommandsRef.current?.undo();
+  };
+  const handleRedo = () => {
+    activeEditorCommandsRef.current?.redo();
+  };
 
   // 2. Local Storage Sync Effect Loops
   useEffect(() => {
@@ -695,6 +703,14 @@ export default function App() {
             e.preventDefault();
             setPlaybackBarOpen((prev) => !prev);
             break;
+          case "z":
+            e.preventDefault();
+            handleUndo();
+            break;
+          case "y":
+            e.preventDefault();
+            handleRedo();
+            break;
           default:
             break;
         }
@@ -735,6 +751,8 @@ export default function App() {
         playbackBarOpen={playbackBarOpen}
         onTogglePlaybackBar={() => setPlaybackBarOpen(!playbackBarOpen)}
         onOpenShortcuts={() => setShortcutsOpen(true)}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
       />
 
       {/* Hidden file input picker */}
@@ -788,6 +806,11 @@ export default function App() {
                   }}
                   searchOpen={searchOpen}
                   onCloseSearch={() => setSearchOpen(false)}
+                  onRegisterCommands={(cmds) => {
+                    if (isActive) {
+                      activeEditorCommandsRef.current = cmds;
+                    }
+                  }}
                 />
               </div>
             </React.Fragment>
